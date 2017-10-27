@@ -31,13 +31,15 @@
 	#define POUNDSIGN  0x7B
 	#define QUOTE      '\''
 	#define COMMA      ','
-	
+
+	#define JCLCMD_KEYWORD  "JCLCMD"	
 	#define COMMAND_KEYWORD "COMMAND"
 	#define CNTL_KEYWORD    "CNTL"
 	#define DD_KEYWORD      "DD"
 	#define ENDCNTL_KEYWORD "ENDCNTL"
 	#define EXEC_KEYWORD    "EXEC"
 	#define IF_KEYWORD      "IF"
+	#define THEN_KEYWORD    "THEN"	
 	#define ELSE_KEYWORD    "ELSE"
 	#define ENDIF_KEYWORD   "ENDIF"
 	#define INCLUDE_KEYWORD "INCLUDE"
@@ -51,12 +53,14 @@
 	
 	#define COMMENT_KEYWORD "//*"
 	
+	#define JCLCMD_KEYLEN   (sizeof(JCLCMD_KEYWORD)-1)	
 	#define COMMAND_KEYLEN  (sizeof(COMMAND_KEYWORD)-1)
 	#define CNTL_KEYLEN     (sizeof(CNTL_KEYWORD)-1)
 	#define DD_KEYLEN       (sizeof(DD_KEYWORD)-1)
 	#define ENDCNTL_KEYLEN  (sizeof(ENDCNTL_KEYWORD)-1)
 	#define EXEC_KEYLEN     (sizeof(EXEC_KEYWORD)-1)
 	#define IF_KEYLEN       (sizeof(IF_KEYWORD)-1)
+	#define THEN_KEYLEN     (sizeof(THEN_KEYWORD)-1)	
 	#define ELSE_KEYLEN     (sizeof(ELSE_KEYWORD)-1)
 	#define ENDIF_KEYLEN    (sizeof(ENDIF_KEYWORD)-1)
 	#define INCLUDE_KEYLEN  (sizeof(INCLUDE_KEYWORD)-1)
@@ -79,6 +83,7 @@
 		JCLContinueJES2ControlStatement=4,
 		JCLContinueJES3ControlStatement=5,
 		JCLInlineText=6,
+		JCLContinueConditional=7,
 	} JCLScanState_T;
 		
 	struct JCLLine;

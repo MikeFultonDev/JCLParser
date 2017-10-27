@@ -49,9 +49,15 @@ static const char* JCLScanInfo[] = {
 	"-> EXEC Statement\n",	
 	"-> JOB Statement\n",	
 	"-> Comment Statement\n",
+	"-> IF Statement\n",
+	"-> ELSE Statement\n",
+	"-> ENDIF Statement\n",
+	"-> JCL Command\n",	
+	"-> COMMAND Statement\n",		
 	"--> continued parameter\n",
 	"--> continued string\n",
 	"--> continued comment\n",
+	"--> continued conditional\n",	
 	"Stmt %.9d %8s Lines:%.2d Ptr:%p\n",
 };
 

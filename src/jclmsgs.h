@@ -57,10 +57,16 @@
 		InfoProcessExecStatement=14,	
 		InfoProcessJobStatement=15,		
 		InfoProcessCommentStatement=16,	
-		InfoInParameter=17,	
-		InfoInString=18,						
-		InfoInComment=19,
-		InfoStmtDump=20,
+		InfoProcessIfStatement=17,	
+		InfoProcessElseStatement=18,	
+		InfoProcessEndifStatement=19,
+		InfoProcessJCLCommand=20,
+		InfoProcessCommandStatement=21,
+		InfoInParameter=22,	
+		InfoInString=23,						
+		InfoInComment=24,
+		InfoInConditional=25,
+		InfoStmtDump=26,
 	} JCLScanInfo_T;
 	
 #ifdef DEBUG

@@ -1,0 +1,14 @@
+Stmt 000000001      JOB Lines:01 Ptr:********
+Stmt 000000002     EXEC Lines:01 Ptr:********
+Stmt 000000003       IF Lines:01 Ptr:********
+Stmt 000000004     EXEC Lines:01 Ptr:********
+Stmt 000000005       DD Lines:01 Ptr:********
+Stmt 000000006       DD Lines:01 Ptr:********
+Stmt 000000007     ELSE Lines:01 Ptr:********
+Stmt 000000008     EXEC Lines:01 Ptr:********
+Stmt 000000009       DD Lines:01 Ptr:********
+Stmt 000000010    ENDIF Lines:01 Ptr:********
+Stmt 000000011       IF Lines:03 Ptr:********
+Stmt 000000012     EXEC Lines:01 Ptr:********
+Stmt 000000013       DD Lines:01 Ptr:********
+Stmt 000000014    ENDIF Lines:01 Ptr:********
