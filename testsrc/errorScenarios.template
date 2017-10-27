@@ -1,0 +1,34 @@
+Option --in=/tmp/file not recognized.
+Option --inputFileName=/tmp/file not recognized.
+No value specified for option: input.
+No value specified for option: output.
+Input JCL had unexpected line longer than 80 bytes. Record 2 truncated.
+000000001 //************80 bytes**********************************************************|
+-> Comment Statement
+Input JCL had unexpected line longer than 80 bytes. Record 2 truncated.
+000000002 //************81 bytes**********************************************************|
+-> Comment Statement
+000000003 //IBMUSERC JOB 'CRTHFS',MSGCLASS=S,NOTIFY=&SYSUID,REGION=0M                     |
+-> JOB Statement
+000000004 //HFS  EXEC PGM=IEFBR14                                                         |
+-> EXEC Statement
+000000005 //HFS01 DD DSN=IBMUSER.ISV.HFS,                                                 |
+-> DD Statement
+--> continued parameter
+000000006 //      SPACE=(CYL,(20,20)),                                                    |
+--> continued parameter
+000000007 //      DSNTYPE=HFS,DCB=(DSORG=PO),                                             |
+--> continued parameter
+000000008 //      VOL=SER=USER01,                                                         |
+--> continued parameter
+000000009 //      DISP=(NEW,CATLG,DELETE)                                                 |
+000000010 //* From USS, issue:                                                            |
+-> Comment Statement
+000000011 //* /usr/sbin/mount -t HFS -f 'IBMUSER.ISV.HFS' /u/ibmuser/ISV                  |
+-> Comment Statement
+Input JCL had unexpected line longer than 80 bytes. Record 12 truncated.
+000000012 //************82 bytes**********************************************************|
+-> Comment Statement
+Input JCL had unexpected line longer than 80 bytes. Record 13 truncated.
+000000013 //************81 bytes**********************************************************|
+-> Comment Statement

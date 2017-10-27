@@ -1,0 +1,4 @@
+Stmt 000000001      JOB Lines:02 Ptr:********
+Stmt 000000002     EXEC Lines:03 Ptr:********
+Stmt 000000003       DD Lines:03 Ptr:********
+Stmt 000000004      //* Lines:01 Ptr:********
