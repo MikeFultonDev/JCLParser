@@ -28,7 +28,7 @@ static const char* JCLScanMessage[] = {
 	"Unable to open output file %s for write.\n",
 	"Unable to re-open stdin for record-oriented read.\n",
 	"Unable to re-open stdout for write.\n",
-	"Unexpected record encountered on line %d of JCL. Scanning terminated.\n",
+	"Unexpected record encountered on line %d of JCL. Invalid Type: %d. Scanning terminated.\n",
 };
 
 static const char* JCLScanInfo[] = {
@@ -53,11 +53,28 @@ static const char* JCLScanInfo[] = {
 	"-> ELSE Statement\n",
 	"-> ENDIF Statement\n",
 	"-> JCL Command\n",	
-	"-> COMMAND Statement\n",		
+	"-> COMMAND Statement\n",	
+	"-> CNTL Statement\n",	
+	"-> ENDCNTL Statement\n",	
+	"-> PRINTDEV Statement\n",	
+	"-> INCLUDE Statement\n",		
+	"-> JCLLIB Statement\n",		
+	"-> NULL Statement\n",		
+	"-> OUTPUT Statement\n",		
+	"-> PROC Statement\n",		
+	"-> PEND Statement\n",		
+	"-> SET Statement\n",		
+	"-> XMIT Statement\n",
+	"-> JES3 Control Statement\n",
+	"-> JES2 Control Statement\n",	
+	"-> SYSIN Generated Statement\n",		
 	"--> continued parameter\n",
 	"--> continued string\n",
 	"--> continued comment\n",
 	"--> continued conditional\n",	
+	"--> JES3 inline dataset\n",	
+	"--> instream dataset\n",		
+	"Scanned Stmt: %.9d %s\n",
 	"Stmt %.9d %8s Lines:%.2d Ptr:%p\n",
 };
 

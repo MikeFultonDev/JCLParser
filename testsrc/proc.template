@@ -1,0 +1,7 @@
+Stmt 000000001      //* Lines:01 Ptr:********
+Stmt 000000002     PROC Lines:03 Ptr:********
+Stmt 000000003      //* Lines:01 Ptr:********
+Stmt 000000004     EXEC Lines:01 Ptr:********
+Stmt 000000005       DD Lines:05 Ptr:********
+Stmt 000000006      //* Lines:01 Ptr:********
+Stmt 000000007     PEND Lines:01 Ptr:********

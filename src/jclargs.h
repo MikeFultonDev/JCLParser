@@ -34,6 +34,7 @@
 		const char* outputFile;
 		int debug:1;
 		int verbose:1;
+		int verboseStatements:1;		
 		int help:1;
 	} OptInfo_T;
 	

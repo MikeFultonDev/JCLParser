@@ -30,6 +30,11 @@ static JCLScanMsg_T processVerbose(const char* value, Option_T* opt, OptInfo_T* 
 	return NoError;
 }
 
+static JCLScanMsg_T processVerboseStatements(const char* value, Option_T* opt, OptInfo_T* optInfo) {
+	optInfo->verboseStatements = 1;
+	return NoError;
+}
+
 static JCLScanMsg_T processInput(const char* value, Option_T* opt, OptInfo_T* optInfo) {
 	if (value[0] != ASSIGN_CHAR) {
 		printError(NoArgSpecified, opt->longName);
@@ -116,6 +121,7 @@ JCLScanMsg_T processArgs(int argc, char* argv[], OptInfo_T* optInfo) {
 		{ &processHelp, "h", "info" }, 		
 		{ &processDebug, "d", "debug" }, 
 		{ &processVerbose, "v", "verbose"},
+		{ &processVerboseStatements, "vs", "verbosestatements"},		
 		{ &processInput, "f", "file"},	
 		{ &processInput, "i", "input"},			
 		{ &processOutput, "o", "output"},				

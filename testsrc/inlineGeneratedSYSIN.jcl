@@ -1,0 +1,17 @@
+//IBMUSERC JOB 'inline',MSGCLASS=S,MSGLEVEL=(1,1)                       
+//MYPGM EXEC PGM=IEFBR14                                                
+Lines that do not start with //                                         
+will be dumped into SYSIN                                               
+/*                                                                      
+//MYPGM2 EXEC PGM=IEFBR14
+And if there is a second set                                            
+they are dumped into another SYSIN                                      
+/*                                                                      
+//SYSIN DD *                                                            
+And if you don't specify the delimiter for inline streams via *         
+Then that's ok too                                                      
+//MYPGM3 EXEC PGM=IEFBR14
+/ Lines that have one slash are data too...    
+//MYPGM4 EXEC PGM=IEFBR14
+Finally, you can just end a JCL stream with data and it will            
+be get directed to SYSIN as well 
