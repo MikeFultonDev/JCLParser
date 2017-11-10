@@ -36,11 +36,15 @@
 	#define COMMA      ','
 	#define LPAREN     '('
 	#define RPAREN     ')'
+	#define DOT        '.'
 	
 	#define DEFAULT_DELIM "/*"
+	#define EMPTY_DELIM   "  "
+	#define DELIM_LEN 2
+	#define QUOTED_DELIM_LEN (DELIM_LEN + 2)
 
 	#define JCLCMD_KEYWORD   "JCLCMD"	
-	#define NULL_KEYWORD     "NULL"	
+	#define NULL_KEYWORD     ""	
 	
 	#define COMMAND_KEYWORD  "COMMAND"
 	#define CNTL_KEYWORD     "CNTL"
@@ -62,9 +66,10 @@
 	#define PRINTDEV_KEYWORD "PRINTDEV"
 	
 	#define COMMENT_KEYWORD "//*"
-	#define JES3_KEYWORD    "JES3"
-	#define JES2_KEYWORD    "JES2"
-	#define GENSYSIN_KEYWORD "GEN-SYSIN"	
+	#define JES3_KEYWORD    "//*"
+	#define JES2_KEYWORD    "/*"
+	#define GENSYSIN_KEYWORD "DD *"	
+	#define GENSYSIN_NAME    "SYSIN "
 	
 	#define DATA_KEYWORD    "DATA"
 	#define DELIM_KEYWORD   "DLM"
@@ -94,12 +99,13 @@
 	#define COMMENT_KEYLEN  (sizeof(COMMENT_KEYWORD)-1)		
 	#define JES3_KEYLEN     (sizeof(JES3_KEYWORD)-1)		
 	#define JES2_KEYLEN     (sizeof(JES2_KEYWORD)-1)	
-	#define GENSYSIN_KEYLEN (sizeof(GENSYSIN_KEYWORD)-1)		
+	#define GENSYSIN_KEYLEN (sizeof(GENSYSIN_KEYWORD)-1)	
+	#define GENSYSIN_NAMELEN (sizeof(GENSYSIN_NAME)-1)			
 	
 	#define DATA_KEYLEN     (sizeof(DATA_KEYWORD)-1)
 	
-	#define GENERATED_SYSIN_DD "//SYSIN DD *"
-	
+	#define GENERATED_SYSIN_DD "//SYSIN DD *     (Generated)                                                   "
+	#define GENERATED_SYSIN_PREFIX_LEN (2+5+1+2)
 	typedef struct {
 		size_t len;
 		char* txt;
@@ -120,8 +126,23 @@
 	#define JES3SIGNOFF_PREFIX    "SIGNOFF"
 	#define JES3SIGNON_PREFIX     "SIGNON"	
 	
+	#define JES3CMD_LEN           (sizeof(JES3CMD_PREFIX)-1)
 	#define JES3DATASET_LEN       (sizeof(JES3DATASET_PREFIX)-1)
 	#define JES3ENDDATASET_LEN    (sizeof(JES3ENDDATASET_PREFIX)-1)	
+	
+	#define JES2CMD_PREFIX		  "$"
+	#define JES2JOBPARM_PREFIX    "JOBPARM"
+	#define JES2MESSAGE_PREFIX    "MESSAGE"
+	#define JES2NETACCT_PREFIX    "NETACCT"
+	#define JES2NOTIFY_PREFIX     "NOTIFY"
+	#define JES2OUTPUT_PREFIX     "OUTPUT"
+	#define JES2PRIORITY_PREFIX   "PRIORITY"
+	#define JES2ROUTE_PREFIX      "ROUTE"
+	#define JES2SETUP_PREFIX      "SETUP"
+	#define JES2SIGNOFF_PREFIX    "SIGNOFF"
+	#define JES2SIGNON_PREFIX     "SIGNON"
+	#define JES2XEQ_PREFIX        "XEQ"
+	#define JES2XMIT_PREFIX       "XMIT"
 	
 	typedef enum {
 		InvalidRecordUnknownType=1,
@@ -178,18 +199,44 @@
 		struct KeyValuePair* next;
 		VarStr_T key;
 		VarStr_T val;
+		char* comment; 
+		int hasNewline: 1;
 	} KeyValuePair_T;
+	
+	struct ScannedLine;
+	typedef struct ScannedLine {
+		struct ScannedLine* next;
+		char*  parmText;
+		char*  commentText;
+	} ScannedLine_T;
+	
+	typedef struct  {
+		char* text;
+	} ConditionalExpression_T;
+	
+	typedef struct  {
+		size_t len;			
+		char retainDelim[DELIM_LEN+1];			
+		char* bytes;
+	} InlineData_T;
 	
 	struct JCLStmt;
 	typedef struct JCLStmt {
 		struct JCLStmt* next;
-		const char* type;
-		char* scannedStatement;	
-		size_t parmListStart;		
-		JCLLine_T* firstJCL;
-		size_t count;	
+		char* name;		
+		const char* type;	
+		size_t lines;					
+
+		ScannedLine_T* scanhead;
+		ScannedLine_T* scantail;
+		
 		KeyValuePair_T* kvphead;
-		KeyValuePair_T* kvptail;		
+		KeyValuePair_T* kvptail;
+		
+		ConditionalExpression_T* conditional;
+		InlineData_T* data;
+		
+		JCLLine_T* firstJCLLine;
 	} JCLStmt_T;
 	
 	typedef struct {
@@ -198,7 +245,7 @@
 		size_t curStmt;
 		JCLScanState_T state;
 		DatasetType_T datasetType;
-		char delimiter[3];
+		char delimiter[DELIM_LEN+1];
 	} JCLStmts_T;
 	
 	typedef struct JCL {
@@ -207,7 +254,7 @@
 		JCLStmts_T* stmts;
 	} JCL_T;	
 	
-	typedef JCLScanMsg_T (ScanFn_T)(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column);	
+	typedef JCLScanMsg_T (ScanFn_T)(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column);	
 	typedef struct {
 		ScanFn_T* scan;
 	} Scanner_T;

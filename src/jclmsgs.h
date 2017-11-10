@@ -33,6 +33,7 @@
 		UnableToReopenInput=12,
 		UnableToReopenOutput=13,
 		InvalidRecordEncountered=14,
+		ErrorScanningJCL=15,
 	} JCLScanMsg_T;
 	
 	/*
@@ -82,8 +83,20 @@
 		InfoInConditional=39,
 		InfoInJES3DatasetControlStatement=40,
 		InfoProcessInstreamDataset=41,	
-		InfoScannedStatement=42,
-		InfoStmtDump=43,
+		InfoScannedStatement=42,		
+		InfoScannedStatementNoName=43,
+		InfoScannedComment=44,
+		InfoKeyOnly=45,	
+		InfoKeyValuePair=46,
+		InfoStmtDump=47,
+		InfoSeparator=48,
+		InfoNewLine=49,
+		InfoComment=50,
+		InfoStmtPrefix=51,
+		InfoScannedJES2ControlStatement=52,
+		InfoScannedJES3ControlStatement=53,
+		InfoScannedIFStatement=54,
+		InfoScannedDelimiter=55,
 	} JCLScanInfo_T;
 	
 #ifdef DEBUG

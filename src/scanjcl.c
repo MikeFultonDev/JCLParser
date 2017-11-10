@@ -33,25 +33,56 @@ const static VarStr_T JES3ControlStatement[] = {
 	{0, NULL}
 };
 
+const static VarStr_T JES2ControlStatement[] = {
+	{sizeof(JES2CMD_PREFIX)-1, JES2CMD_PREFIX },
+	{sizeof(JES2JOBPARM_PREFIX)-1, JES2JOBPARM_PREFIX },
+	{sizeof(JES2MESSAGE_PREFIX)-1, JES2MESSAGE_PREFIX },
+	{sizeof(JES2NETACCT_PREFIX)-1, JES2NETACCT_PREFIX },
+	{sizeof(JES2NOTIFY_PREFIX)-1, JES2NOTIFY_PREFIX },
+	{sizeof(JES2OUTPUT_PREFIX)-1, JES2OUTPUT_PREFIX },
+	{sizeof(JES2PRIORITY_PREFIX)-1, JES2PRIORITY_PREFIX },
+	{sizeof(JES2ROUTE_PREFIX)-1, JES2ROUTE_PREFIX },
+	{sizeof(JES2SETUP_PREFIX)-1, JES2SETUP_PREFIX },
+	{sizeof(JES2SIGNOFF_PREFIX)-1, JES2SIGNOFF_PREFIX },
+	{sizeof(JES2SIGNON_PREFIX)-1, JES2SIGNON_PREFIX },
+	{sizeof(JES2XEQ_PREFIX)-1, JES2XEQ_PREFIX },
+	{sizeof(JES2XMIT_PREFIX)-1, JES2XMIT_PREFIX },
+	{0, NULL}
+};
+
 static size_t isNational(char c) {
 	return (c == ATSIGN || c == DOLLARSIGN || c == POUNDSIGN);
 }
 
 static size_t isValidName(const const char* buffer, size_t* nameLen) {
 	size_t i;
+	size_t dotLocation = 0;
 	*nameLen = 0; 
+	
 	if (!isupper(buffer[0]) && !isNational(buffer[0])) {
 		return 0;
 	}
-	for (i=1; i<NAME_LEN; ++i) {
+	
+	for (i=1; i<NAME_LEN*2+1; ++i) {
 		*nameLen = i;		
 		if (buffer[i] == BLANK) {
 			return 1;
 		}
 		if (!isupper(buffer[i]) && !isdigit(buffer[i]) && !isNational(buffer[i])) {
-			return 0;
+			if (buffer[i] == DOT && dotLocation == 0) {
+				dotLocation = i;
+				if (i > NAME_LEN) {
+					return 0;
+				}
+			} else {
+				return 0;
+			}
 		}	
 	}
+	if (i - dotLocation > NAME_LEN) {
+		return 0; 
+	}
+	
 	*nameLen = i;		
 	return (buffer[NAME_LEN] == BLANK);
 }
@@ -157,33 +188,10 @@ static JCLScanMsg_T scanRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo, char* b
 	return scanRC;
 }
 
-static JCLScanMsg_T scanConditional(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
-	size_t i = column;
-	int conditionalComplete = 0;
-	
-	const char* text = progInfo->jcl->lines->tail->text;
-	while (i < JCL_TXTLEN) {
-		if (text[i-1] == BLANK && i < (JCL_TXTLEN - THEN_KEYLEN)) {
-			if (!memcmp(&text[i], THEN_KEYWORD, THEN_KEYLEN) && (text[i+THEN_KEYLEN] == BLANK)) {
-				conditionalComplete = 1;
-				i += THEN_KEYLEN;
-				break;
-			}
-		}
-		++i;
-	}
-	
-	if (conditionalComplete) {
-		progInfo->jcl->stmts->state = JCLNotContinued;			
-	} else {
-		if (optInfo->verbose) { printInfo(InfoInConditional); }	
-		progInfo->jcl->stmts->state = JCLContinueConditional;
-	}		
-	return NoError;
-}
 
-static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* parm, size_t parmLen, const char* value, size_t valLen) {		
+static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* parm, size_t parmLen, const char* value, size_t valLen, char* comment, int hasNewline) {		
 	KeyValuePair_T* kvp = malloc(sizeof(KeyValuePair_T));
+
 	if (!kvp) {
 		return InternalOutOfMemory;
 	}
@@ -193,8 +201,12 @@ static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const c
 	if (!kvp->key.txt) {
 		return InternalOutOfMemory;
 	}	
-	copyNormalizedText(kvp->key.txt, parm, parmLen);
+	/*copyNormalizedText(kvp->key.txt, parm, parmLen);*/
+	memcpy(kvp->key.txt, parm, parmLen);
+	kvp->key.txt[parmLen] = '\0';
 	
+	kvp->comment = comment;
+	kvp->hasNewline = hasNewline;
 	if (value == NULL) {
 		kvp->val.len = 0;
 		kvp->val.txt = NULL;
@@ -202,7 +214,11 @@ static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const c
 		kvp->key.txt[parmLen] = '\0';
 		kvp->val.len = valLen;
 		kvp->val.txt = malloc(valLen+1);
-		copyNormalizedText(kvp->val.txt, value, valLen);
+		if (!kvp->val.txt) {
+			return InternalOutOfMemory;
+		}			
+		/*copyNormalizedText(kvp->val.txt, value, valLen);*/
+		memcpy(kvp->val.txt, value, valLen);		
 		kvp->val.txt[valLen] = '\0';
 		if (!kvp->val.txt) {
 			return InternalOutOfMemory;
@@ -215,76 +231,182 @@ static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const c
 		progInfo->jcl->stmts->tail->kvptail->next = kvp;
 	}
 
+#if 0
+	if (optInfo->debug) {
+		if (value) {
+			printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
+		} else {
+			printInfo(InfoKeyOnly, kvp->key.txt);
+		}
+		printInfo(InfoNewLine);
+	}
+#endif	
+	
 	progInfo->jcl->stmts->tail->kvptail = kvp;		
 	return NoError;
 }
 
+static char* copyParmText(ScannedLine_T* curLine) {
+	size_t end;
+	char* text;
+	
+	if (!curLine->parmText) {
+		end = 0;
+	} else {
+		end = strlen(curLine->parmText);
+	}
+	text = malloc(end+1);
+	if (!text) {
+		return NULL;
+	}
+	memcpy(text, curLine->parmText, end);
+	text[end] = '\0';
+	
+	return text;
+}
+	
 static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+	char* comment;
+	ScannedLine_T* curLine = progInfo->jcl->stmts->tail->scanhead;
+	char* text;	
+	char* next;
 	size_t i;
-	size_t start = progInfo->jcl->stmts->tail->parmListStart;
-	const char* text = progInfo->jcl->stmts->tail->scannedStatement;	
-	size_t end = strlen(text);
+	size_t start = 0;
+	size_t end = strlen(curLine->parmText);
+	int hasNewline;
+	JCLScanMsg_T rc;
 
 	JCLParmContext_T context = JCLParmInKeyword;
 	int curParm = start;
-	int curValue;
+	int curValue = -1;
 	int parenNest = 0;
 	JCLParmContext_T prevContext = context;
 	
-	for (i=start; i<end; ++i) {
-		switch (context) {
-			case JCLParmInKeyword:
-				if (text[i] == EQUALS) {
-					context = JCLParmInValue;
-					curValue=i+1;
-				} else if (text[i] == COMMA) {
-					addSubParm(optInfo, progInfo, &text[curParm], i-curParm, NULL, 0);
-					curParm = i+1;					
-				}
-				break;
-			case JCLParmInValue:
-				if (text[i] == COMMA) {
-					const char* value;
-					context = JCLParmInKeyword;
-					if (curValue == i) {
-						value = "";
-					} else {
-						value = &text[curValue];
-					}
-					addSubParm(optInfo, progInfo, &text[curParm], curValue-curParm-1, value, i-curValue);
-					curParm = i+1;
-				} else if (text[i] == QUOTE) {
-					context = JCLParmInQuote;
-					prevContext = JCLParmInValue;
-				} else if (text[i] == LPAREN) {
-					context = JCLParmInParen;
-				}
-				break;
-			case JCLParmInQuote:
-				if (text[i] == QUOTE) {
-					context = prevContext;
-				}
-				break;
-			case JCLParmInParen:
-				if (text[i] == QUOTE) {
-					context = JCLParmInQuote;
-					prevContext = JCLParmInParen;
-				} else if (text[i] == RPAREN) {
-					--parenNest;
-					if (parenNest == 0) {
-						context = JCLParmInKeyword;
-					}
-				}
-				break;
-		}
-	}		
-	
-	if (context == JCLParmInKeyword) {
-		addSubParm(optInfo, progInfo, &text[curParm], i-curParm, NULL, 0);
-	} else {
-		addSubParm(optInfo, progInfo, &text[curParm], curValue-curParm-1, &text[curValue], end-curValue);
+	text = copyParmText(curLine);
+	if (!text) {
+		return InternalOutOfMemory;
 	}
-
+	
+	while (curLine != NULL) {
+		for (i=start; i<end; ++i) {
+			switch (context) {
+				case JCLParmInKeyword:
+					if (text[i] == EQUALS) {
+						context = JCLParmInValue;
+						curValue=i+1;
+					} else if (text[i] == COMMA) {
+						if (i+1 == end) {
+							comment = curLine->commentText;
+							hasNewline = 1;
+						} else {
+							comment = NULL;
+							hasNewline = 0;
+						}
+						rc = addSubParm(optInfo, progInfo, &text[curParm], i-curParm, NULL, 0, comment, hasNewline);
+						if (rc != NoError) { return rc; }
+						curParm = i+1;					
+					}
+					break;
+				case JCLParmInValue:
+					if (text[i] == COMMA && parenNest == 0) {
+						const char* value;
+						context = JCLParmInKeyword;
+						if (curValue == i) {
+							value = "";
+						} else {
+							value = &text[curValue];
+						}
+						if (i+1 == end) {
+							comment = curLine->commentText;
+							hasNewline = 1;
+						} else {
+							comment = NULL;
+							hasNewline = 0;
+						}					
+						rc = addSubParm(optInfo, progInfo, &text[curParm], curValue-curParm-1, value, i-curValue, comment, hasNewline);
+						if (rc != NoError) { return rc; }						
+						curParm = i+1;
+					} else if (text[i] == QUOTE) {
+						context = JCLParmInQuote;
+						prevContext = JCLParmInValue;
+					} else if (text[i] == LPAREN) {
+						++parenNest;
+						context = JCLParmInParen;
+					}
+					break;
+				case JCLParmInQuote:
+					if (text[i] == QUOTE) {
+						context = prevContext;
+					}
+					break;
+				case JCLParmInParen:
+					if (text[i] == QUOTE) {
+						context = JCLParmInQuote;
+						prevContext = JCLParmInParen;
+					} else if (text[i] == RPAREN) {
+						--parenNest;
+						if (parenNest == 0) {
+							context = JCLParmInValue;
+						}
+					}
+					break;
+			}
+		}
+		comment = curLine->commentText;
+		curLine = curLine->next;	
+		if (curLine != NULL) {
+			next = copyParmText(curLine);
+			if (!next) {
+				return InternalOutOfMemory;
+			}
+		} else {
+			next = NULL;
+		}
+		if (next != NULL && (context == JCLParmInQuote || context == JCLParmInParen || parenNest > 0)) { /* in the middle of processing */
+			size_t nextStart = end-curParm;
+			size_t nextEnd = strlen(next);			
+			char* temp = malloc(nextStart+nextEnd+1);
+			if (!temp) {
+				return InternalOutOfMemory;
+			}
+			memcpy(temp, &text[curParm], nextStart);
+			memcpy(&temp[nextStart], next, nextEnd);
+			temp[nextStart+nextEnd] = '\0';
+			free(text);
+			free(next);
+			text = temp;
+			start = nextStart;
+			curValue -= curParm;
+			end = nextStart+nextEnd;
+			curParm = 0;						
+		} else {  /* clean end of parameter at end of line */
+			if (curParm < end) {
+				if (context == JCLParmInKeyword) {
+					rc = addSubParm(optInfo, progInfo, &text[curParm], i-curParm, NULL, 0, comment, 1);
+				} else {
+					rc = addSubParm(optInfo, progInfo, &text[curParm], curValue-curParm-1, &text[curValue], end-curValue, comment, 1);
+				}
+				if (rc != NoError) { return rc; }				
+			}
+			free(text);
+			text = next;
+			if (next != NULL) {
+				start = 0;
+				end = strlen(text);	
+				curParm = start;
+			} else {
+				curParm = end;
+			}
+		}
+	} 	
+	if (curParm < end) {
+		if (context == JCLParmInKeyword) {
+			rc = addSubParm(optInfo, progInfo, &text[curParm], i-curParm, NULL, 0, comment, 1);
+		} else {
+			rc = addSubParm(optInfo, progInfo, &text[curParm], curValue-curParm-1, &text[curValue], end-curValue, comment, 1);
+		}
+		if (rc != NoError) { return rc; }		
+	}
 	return NoError;
 }
 
@@ -300,56 +422,130 @@ static const char* getSubParameter(OptInfo_T* optInfo, ProgInfo_T* progInfo, con
 	return NULL;
 }
 
-JCLScanMsg_T createScannedStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
-	progInfo->jcl->stmts->tail->parmListStart = start;
+static void skipBlanks(const char* text, size_t* pstart, size_t* pend) {
+	size_t start = *pstart;
+	size_t end = *pend;
 	
-	progInfo->jcl->stmts->tail->scannedStatement = malloc(end+1);
-	if (!progInfo->jcl->stmts->tail->scannedStatement) {
+	while (start < end) {
+		if (text[start] != BLANK) break;
+		++start;
+	}
+
+	if (start < end) {
+		while (end > start) {
+			if (text[end] != BLANK) break;
+			--end;
+		}
+		end++;
+	}
+	*pstart = start;
+	*pend = end;
+}
+
+static JCLScanMsg_T addScannedLine(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, 
+	size_t parmStart, size_t parmEnd, size_t commentStart, size_t commentEnd) {
+
+	ScannedLine_T* line = malloc(sizeof(ScannedLine_T));
+	char* parmText;
+	char* commentText;
+	
+	if (!line) {
 		return InternalOutOfMemory;
 	}
-	memcpy(progInfo->jcl->stmts->tail->scannedStatement, text, end);
-	progInfo->jcl->stmts->tail->scannedStatement[end] = '\0';
-	return NoError;
-}
-
-JCLScanMsg_T addToScannedStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
-	char* curTxt = progInfo->jcl->stmts->tail->scannedStatement;
-	size_t curLen = strlen(curTxt);
-	size_t newLen = curLen + (end-start+1);
-	
-	progInfo->jcl->stmts->tail->scannedStatement = malloc(newLen+1);
-	if (!progInfo->jcl->stmts->tail->scannedStatement) {
-		return InternalOutOfMemory;
+	if (parmEnd > parmStart) {
+		parmText = malloc(parmEnd-parmStart+1);	
+		if (!parmText) {
+			return InternalOutOfMemory;
+		}		
+	} else {
+		parmText = NULL;
 	}
 	
-	memcpy(progInfo->jcl->stmts->tail->scannedStatement, curTxt, curLen);
-	memcpy(&progInfo->jcl->stmts->tail->scannedStatement[curLen], &text[start], end-start);
-	progInfo->jcl->stmts->tail->scannedStatement[curLen+end-start] = '\0';
-	
-	free(curTxt);
-	
-	return NoError;
-}
-
-JCLScanMsg_T completeScannedStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
-	progInfo->jcl->stmts->curStmt++;
-	if (optInfo->verboseStatements) {
-		printInfo(InfoScannedStatement, progInfo->jcl->stmts->curStmt, progInfo->jcl->stmts->tail->scannedStatement); 
+	if (commentEnd > commentStart) {
+		commentText = malloc(commentEnd-commentStart+1);
+		if (!commentText) {
+			return InternalOutOfMemory;
+		}
+	} else {
+		commentText = NULL;	
 	}
+
+	if (!progInfo->jcl->stmts->tail->scanhead) {
+		progInfo->jcl->stmts->tail->scanhead = progInfo->jcl->stmts->tail->scantail = line;
+	} else {
+		progInfo->jcl->stmts->tail->scantail->next = line;
+		progInfo->jcl->stmts->tail->scantail = line;
+	}
+	line->next = NULL;
+	line->parmText = parmText;
+	line->commentText = commentText;
+
+	if (line->parmText) {	
+		memcpy(line->parmText, &text[parmStart], parmEnd-parmStart);
+		line->parmText[parmEnd-parmStart] = '\0';
+	}
+	
+	if (line->commentText) {
+		memcpy(line->commentText, &text[commentStart], commentEnd-commentStart);
+		line->commentText[commentEnd-commentStart] = '\0';	
+	}
+		
 	return NoError;
 }
 
-static JCLScanMsg_T scanParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
+	ScannedLine_T* line = progInfo->jcl->stmts->tail->scantail;
+	char* orig = line->commentText;
+	char* next;
+	size_t origLen;
+	size_t newLen = end-start;	
+	
+	skipBlanks(text, &start, &end); 
+	
+	if (orig) {
+		origLen = strlen(orig);
+	} else {
+		origLen = 0;
+	}
+	next = malloc(origLen+newLen+1);
+	if (!next) {
+		return InternalOutOfMemory;		
+	}
+	if (origLen != 0) {
+		memcpy(next, orig, origLen);
+	}
+	memcpy(&next[origLen], &text[start], newLen);
+	next[origLen+newLen] = '\0';
+	
+	line->commentText = next;
+	free(orig);
+	
+	return NoError;
+}
+	
+static int isValidDelimiter(const char* text) {
+	size_t len = strlen(text);
+	if (len != QUOTED_DELIM_LEN) {
+		return 0;
+	}
+	if (text[0] != QUOTE || text[QUOTED_DELIM_LEN-1] != QUOTE) {
+		return 0;
+	}
+	return 1;
+}
+
+static JCLScanMsg_T scanParametersFromText(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column, char* text) {
 	size_t i = column;
 	int inString = (progInfo->jcl->stmts->state == JCLContinueString);
 	int inComment = (progInfo->jcl->stmts->state == JCLContinueComment);
 	int inParameter = (progInfo->jcl->stmts->state == JCLContinueParameter);
 	JCLScanMsg_T rc;
 	
-	const char* text = progInfo->jcl->lines->tail->text;
 	int firstLine = (!inString && !inComment && !inParameter);
 	size_t start = i;
 	size_t end = JCL_TXTLEN;
+	size_t commentStart = 0;
+	size_t commentEnd = 0;
 	
 	inParameter = 0;
 	
@@ -365,16 +561,15 @@ static JCLScanMsg_T scanParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo, siz
 				if (text[i-1] == COMMA) {		
 					inParameter = 1;
 				}
-				end = i;
+				end=i;
+				commentStart = i;
+				commentEnd = JCL_TXTLEN-1;
 				break;
 			}
 			++i;
 		}
-		if (firstLine) {
-			rc = createScannedStatement(optInfo, progInfo, text, start, end);
-		} else {
-			rc = addToScannedStatement(optInfo, progInfo, text, start, end);
-		}		
+		skipBlanks(text, &commentStart, &commentEnd);			
+		rc = addScannedLine(optInfo, progInfo, text, start, end, commentStart, commentEnd);
 	}
 
     /*
@@ -393,10 +588,7 @@ static JCLScanMsg_T scanParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo, siz
 	} else {
 		progInfo->jcl->stmts->state = JCLNotContinued;	
 		
-		rc = completeScannedStatement(optInfo, progInfo);
-		if (rc != NoError) {
-			return rc;
-		}		
+		progInfo->jcl->stmts->curStmt++;		
 		rc = scanSubParameters(optInfo, progInfo);
 		if (rc != NoError) {
 			return rc;
@@ -406,34 +598,37 @@ static JCLScanMsg_T scanParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo, siz
 		 * and set the state to inline record processing
 		 */
 		if (progInfo->jcl->stmts->datasetType == InstreamDatasetStar || progInfo->jcl->stmts->datasetType == InstreamDatasetData) {
-			size_t dlmlen;
-			const char* dlm = getSubParameter(optInfo, progInfo, DELIM_KEYWORD);
-			if (!dlm) {
-				dlm = DEFAULT_DELIM;
-			}
-			dlmlen = strlen(dlm);
-			if (dlmlen > 2) {
-				dlmlen = 2;
-			}
-			if (dlmlen == 0) {
-				dlm = DEFAULT_DELIM;
-				dlmlen = strlen(DEFAULT_DELIM);
+			const char* dlmOrig = getSubParameter(optInfo, progInfo, DELIM_KEYWORD);
+			const char* dlmTxt;
+			if (isValidDelimiter(dlmOrig)) {
+				dlmTxt = &dlmOrig[1];
+			} else {
+				dlmTxt = DEFAULT_DELIM;
 			}
 			
 			progInfo->jcl->stmts->state = JCLInlineText;
-			memcpy(progInfo->jcl->stmts->delimiter, dlm, dlmlen);
-			progInfo->jcl->stmts->delimiter[dlmlen] = '\0';
+			memcpy(progInfo->jcl->stmts->delimiter, dlmTxt, DELIM_LEN);
+			progInfo->jcl->stmts->delimiter[DELIM_LEN] = '\0';
 		}
 	}
 	
 	return NoError;
 }
 
-JCLScanMsg_T addStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* stmtType) {
+static JCLScanMsg_T scanParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) { 
+	char* text = progInfo->jcl->lines->tail->text;
+	return scanParametersFromText(optInfo, progInfo, column, text);
+}
+
+static JCLScanMsg_T addStatementFromText(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t nameEndOffset, const char* stmtType, const char* text) {
+		
 	JCLStmt_T* stmt = malloc(sizeof(JCLStmt_T));
+	char* name;
+
 	if (!stmt) {
 		return InternalOutOfMemory;
 	}
+
 	if (!progInfo->jcl->stmts->head) {
 		progInfo->jcl->stmts->head = progInfo->jcl->stmts->tail = stmt;
 	} else {
@@ -441,31 +636,211 @@ JCLScanMsg_T addStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* 
 	}
 	stmt->next = NULL;
 	stmt->type = stmtType;
-	stmt->count = 1;
-	stmt->firstJCL = progInfo->jcl->lines->tail;
+
+	if (nameEndOffset != 0) {
+		stmt->name = malloc(nameEndOffset+1);
+		if (!stmt->name) {
+			return InternalOutOfMemory;
+		}
+		memcpy(stmt->name, text, nameEndOffset);
+		stmt->name[nameEndOffset] = '\0';		
+	} else {
+		stmt->name = NULL;
+	}	
+
+	stmt->lines = 1;
+	stmt->firstJCLLine = progInfo->jcl->lines->tail;	
 	stmt->kvphead = stmt->kvptail = NULL;
-	stmt->scannedStatement = NULL;
-	stmt->parmListStart = 0;
+	stmt->scanhead = stmt->scantail = NULL;
+	stmt->conditional = NULL;
+	stmt->data = NULL;
 	
 	progInfo->jcl->stmts->tail = stmt;
 		
 	return NoError;
 }
 
-JCLScanMsg_T addToStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
-	progInfo->jcl->stmts->tail->count++;
+static JCLScanMsg_T addStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t nameEndOffset, const char* stmtType) {
+	char* text = &progInfo->jcl->lines->tail->text[PREFIX_LEN];
+	return addStatementFromText(optInfo, progInfo, nameEndOffset-PREFIX_LEN, stmtType, text);
+}
+
+static JCLScanMsg_T addToStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+	progInfo->jcl->stmts->tail->lines++;
 	return NoError;
 }
 
-void printStatements(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+void printDebugStatements(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+        size_t stmtNum = 0;
+        JCLStmts_T* stmts = progInfo->jcl->stmts;
+        JCLStmt_T* cur = stmts->head;
+
+        while (cur != NULL) {
+			printInfo(InfoStmtDump, ++stmtNum, cur->type, cur->lines, cur->firstJCLLine);
+			cur = cur->next;
+		}
+}
+
+static void printVerboseStatements(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	size_t stmtNum = 0;
 	JCLStmts_T* stmts = progInfo->jcl->stmts;
 	JCLStmt_T* cur = stmts->head;
-	
 	while (cur != NULL) {
-		printInfo(InfoStmtDump, ++stmtNum, cur->type, cur->count, cur->firstJCL);
+		if (!strcmp(cur->type, COMMENT_KEYWORD)) {
+			printInfo(InfoScannedComment, cur->scanhead->commentText);
+		} else {
+			if (!strcmp(cur->type, JES2_KEYWORD)) {
+				printInfo(InfoScannedJES2ControlStatement);
+			} else if (!strcmp(cur->type, JES3_KEYWORD)) {
+				printInfo(InfoScannedJES3ControlStatement);
+			} else {
+				if (!cur->name) {
+					printInfo(InfoScannedStatementNoName, cur->type); 
+				} else {
+					printInfo(InfoScannedStatement, cur->name, cur->type); 
+				}	
+			}
+			if (cur->conditional) {
+				printInfo(InfoScannedIFStatement, cur->conditional->text);
+			}
+			KeyValuePair_T* kvp = cur->kvphead;
+			if (kvp == NULL) {
+				printInfo(InfoNewLine);
+			}
+			while (kvp != NULL) {
+				if (!kvp->val.txt) {
+					printInfo(InfoKeyOnly, kvp->key.txt);
+				} else {
+					printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
+				}
+				if (kvp->next != NULL) {
+					printInfo(InfoSeparator);
+				}
+				if (kvp->comment) {
+					printInfo(InfoComment, kvp->comment);
+				}
+				if (kvp->next == NULL || kvp->hasNewline) {
+					printInfo(InfoNewLine);
+				}
+				if (kvp->hasNewline && kvp->next != NULL) {
+					printInfo(InfoStmtPrefix);
+				}
+				kvp = kvp->next;
+			}
+			if (cur->data) {
+				if (cur->data->bytes && (cur->data->len > 0)) {
+					fwrite(cur->data->bytes, cur->data->len, 1, stdout);
+				}
+
+				if (cur->data->retainDelim) {
+					if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+						printInfo(InfoScannedDelimiter, cur->data->retainDelim);
+					}
+				}
+			}
+		}
 		cur = cur->next;
 	}
+}
+
+static JCLScanMsg_T addToRelationalExpression(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
+	ConditionalExpression_T* cond = progInfo->jcl->stmts->tail->conditional;
+	size_t prevLen;
+	char* newText;
+	skipBlanks(text, &start, &end);
+	
+	if (!cond) {
+		cond = malloc(sizeof(ConditionalExpression_T));
+		if (!cond) {
+			return InternalOutOfMemory;
+		}
+		cond->text = NULL;
+		prevLen = 0;
+		progInfo->jcl->stmts->tail->conditional = cond;
+	} else {
+		prevLen = strlen(cond->text);
+	}
+	newText = malloc(prevLen+end-start+1);
+	if (!newText) {
+		return InternalOutOfMemory;
+	}
+	if (cond->text) {
+		memcpy(newText, cond->text, prevLen);
+		free(cond->text);
+	}
+	memcpy(&newText[prevLen], &text[start], end-start);
+	newText[prevLen+end-start] = '\0';
+	
+	cond->text = newText;
+	return NoError;
+}
+
+static JCLScanMsg_T addToInlineData(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end, const char* retainDelim) {
+	InlineData_T* data = progInfo->jcl->stmts->tail->data;
+	char* newBytes;
+	
+	if (!data) {
+		data = malloc(sizeof(InlineData_T));
+		if (!data) {
+			return InternalOutOfMemory;
+		}
+		data->bytes = NULL;
+		data->len = 0;
+		strcpy(data->retainDelim, EMPTY_DELIM);
+		progInfo->jcl->stmts->tail->data = data;
+	}
+	
+	if (retainDelim) {
+		strcpy(data->retainDelim, retainDelim);
+	} else {			
+		newBytes = malloc(data->len+end-start+1);
+		if (!newBytes) {
+			return InternalOutOfMemory;
+		}
+		if (data->bytes) {
+			memcpy(newBytes, data->bytes, data->len);
+			free(data->bytes);
+		}
+		memcpy(&newBytes[data->len], &text[start], end-start);
+		newBytes[data->len+end-start] = '\n';
+		
+		data->bytes = newBytes;
+		data->len += (end-start+1);
+	}
+	return NoError;
+}
+
+static JCLScanMsg_T scanConditional(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+	size_t i = column;
+	int conditionalComplete = 0;
+	size_t nameLen;
+	JCLScanMsg_T rc;
+	
+	char* text = progInfo->jcl->lines->tail->text;
+
+	while (i < JCL_TXTLEN) {
+		if (text[i-1] == BLANK && i < (JCL_TXTLEN - THEN_KEYLEN)) {
+			if (!memcmp(&text[i], THEN_KEYWORD, THEN_KEYLEN) && (text[i+THEN_KEYLEN] == BLANK)) {
+				conditionalComplete = 1;
+				--i;
+				break;
+			}
+		}
+		++i;
+	}
+	
+	rc = addToRelationalExpression(optInfo, progInfo, text, column, i); 
+	if (rc != NoError) {
+		return rc;
+	}
+	if (conditionalComplete) {
+		i += THEN_KEYLEN;
+		progInfo->jcl->stmts->state = JCLNotContinued;		
+	} else {
+		if (optInfo->verbose) { printInfo(InfoInConditional); }	
+		progInfo->jcl->stmts->state = JCLContinueConditional;
+	}		
+	return NoError;
 }
 
 static JCLScanMsg_T processInvalidRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo, InvalidRecordType_T invalidType) {
@@ -473,137 +848,147 @@ static JCLScanMsg_T processInvalidRecord(OptInfo_T* optInfo, ProgInfo_T* progInf
 	return InputEOF;
 }
 
-static JCLScanMsg_T processDelimeterOrControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
-	return NoError;
+static JCLScanMsg_T scanJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
+	JCLScanMsg_T rc;
+	const char* text = progInfo->jcl->lines->tail->text;	
+	if (optInfo->verbose) { printInfo(InfoProcessJES2ControlStatement); }
+	rc = addStatementFromText(optInfo, progInfo, name, JES2_KEYWORD, &text[PREFIX_LEN]);
+	if (rc == NoError) {
+		rc = scanParameters(optInfo, progInfo, column);
+	}		
+	return rc;
 }
 
-
-static JCLScanMsg_T scanJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	const char* text = progInfo->jcl->lines->tail->text;	
 	if (optInfo->verbose) { printInfo(InfoProcessJES3ControlStatement); }
-	rc = addStatement(optInfo, progInfo, JES3_KEYWORD);
+	rc = addStatementFromText(optInfo, progInfo, name, JES3_KEYWORD, &text[PREFIX_LEN]);
 	if (!wordlcmp(&text[column], JES3DATASET_PREFIX, JES3DATASET_LEN)) {
 		if (optInfo->verbose) { printInfo(InfoInJES3DatasetControlStatement); }		
 		progInfo->jcl->stmts->state = JCLContinueJES3DatasetControlStatement;
+	} else {
+		if (rc == NoError) {
+			rc = scanParameters(optInfo, progInfo, column);
+		}		
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanSetStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanSetStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessSetStatement); }
-	rc = addStatement(optInfo, progInfo, SET_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, SET_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanIfStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanIfStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessIfStatement); }
-	rc = addStatement(optInfo, progInfo, IF_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, IF_KEYWORD);
 	if (rc == NoError) {
 		rc = scanConditional(optInfo, progInfo, column);
 	}	
 	return rc;
 }
 
-static JCLScanMsg_T scanElseStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanElseStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessElseStatement); }
-	rc = addStatement(optInfo, progInfo, ELSE_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, ELSE_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanEndifStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanEndifStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessEndifStatement); }
-	rc = addStatement(optInfo, progInfo, ENDIF_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, ENDIF_KEYWORD);
 	return rc;
 }
 
 
-static JCLScanMsg_T scanProcStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanProcStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessProcStatement); }
-	rc = addStatement(optInfo, progInfo, PROC_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, PROC_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanPendStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanPendStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessPendStatement); }
-	rc = addStatement(optInfo, progInfo, PEND_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, PEND_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanIncludeStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanIncludeStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessIncludeStatement); }
-	rc = addStatement(optInfo, progInfo, INCLUDE_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, INCLUDE_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanJCLLibStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanJCLLibStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessJCLLibStatement); }
-	rc = addStatement(optInfo, progInfo, JCLLIB_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, JCLLIB_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanCommandStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanCommandStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessCommandStatement); }
-	rc = addStatement(optInfo, progInfo, COMMAND_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, COMMAND_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanCntlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanCntlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessCntlStatement); }
-	rc = addStatement(optInfo, progInfo, CNTL_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, CNTL_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanEndCntlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanEndCntlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessEndCntlStatement); }
-	rc = addStatement(optInfo, progInfo, ENDCNTL_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, ENDCNTL_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanPrintDevStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanPrintDevStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessPrintDevStatement); }
-	rc = addStatement(optInfo, progInfo, PRINTDEV_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, PRINTDEV_KEYWORD);
 	return rc;
 }
 
-static JCLScanMsg_T scanOutputStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanOutputStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessOutputStatement); }
-	rc = addStatement(optInfo, progInfo, OUTPUT_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, OUTPUT_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
 	return rc;
 }
 
-static JCLScanMsg_T scanXMitStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanXMitStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessXmitStatement); }
-	rc = addStatement(optInfo, progInfo, XMIT_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, XMIT_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}
@@ -631,10 +1016,10 @@ static DatasetType_T datasetType(const char* text) {
 	return OutstreamDataset;
 }
 
-static JCLScanMsg_T scanDDStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanDDStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessDDStatement); }
-	rc = addStatement(optInfo, progInfo, DD_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, DD_KEYWORD);
 
 	if (rc == NoError) {
 		const char* text = progInfo->jcl->lines->tail->text;
@@ -650,57 +1035,42 @@ static JCLScanMsg_T scanDDStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, si
 	return rc;
 }
 
-static JCLScanMsg_T scanExecStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanExecStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessExecStatement); }
-	rc = addStatement(optInfo, progInfo, EXEC_KEYWORD);
+	rc = addStatement(optInfo, progInfo, name, EXEC_KEYWORD);
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}	
 	return rc;
 }
 
-static JCLScanMsg_T scanJobStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanJobStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	if (optInfo->verbose) { printInfo(InfoProcessJobStatement); }
-	rc = addStatement(optInfo, progInfo, JOB_KEYWORD);	
+	rc = addStatement(optInfo, progInfo, name, JOB_KEYWORD);	
 	if (rc == NoError) {
 		rc = scanParameters(optInfo, progInfo, column);
 	}	
 	return rc;
 }
 
-static JCLScanMsg_T scanCommentStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+static JCLScanMsg_T scanCommentStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;	
+	char* text = &progInfo->jcl->lines->tail->text[PREFIX_LEN+1];
 	if (optInfo->verbose) { printInfo(InfoProcessCommentStatement); }
-	rc = addStatement(optInfo, progInfo, COMMENT_KEYWORD);	
+	rc = addStatementFromText(optInfo, progInfo, 0, COMMENT_KEYWORD, text);	
+	if (rc != NoError) {
+		return rc;
+	}
+	rc = addScannedLine(optInfo, progInfo, text, 0, 0, 0, JCL_TXTLEN-PREFIX_LEN);	
 	return rc;
 }
 
 
-static JCLScanMsg_T scanGenerateSYSINStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
-	JCLScanMsg_T rc;	
-	if (optInfo->verbose) { printInfo(InfoProcessGenerateSYSINStatement); }
-	rc = addStatement(optInfo, progInfo, GENSYSIN_KEYWORD);	
-	if (rc != NoError) {
-		return rc;
-	}
-	rc = createScannedStatement(optInfo, progInfo, GENERATED_SYSIN_DD, 0, sizeof(GENERATED_SYSIN_DD)-1);
-	if (rc != NoError) {
-		return rc;
-	}
-	rc = completeScannedStatement(optInfo, progInfo);
-	if (rc != NoError) {
-		return rc;
-	}	
-	progInfo->jcl->stmts->datasetType = InstreamDatasetStar;
-	progInfo->jcl->stmts->state = JCLInlineText;
-	strcpy(progInfo->jcl->stmts->delimiter, DEFAULT_DELIM);
-	
-	return rc;
-}
 
-static JCLScanMsg_T scanJCLCommand(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+
+static JCLScanMsg_T scanJCLCommand(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	/*
 	 * JCL Command must be one record. scanCommandStatement() gets driven for the 'COMMAND' statement
 	 * which can be multiple lines
@@ -708,22 +1078,25 @@ static JCLScanMsg_T scanJCLCommand(OptInfo_T* optInfo, ProgInfo_T* progInfo, siz
 	JCLScanMsg_T rc;	
 	if (blankRecord(progInfo)) {
 		if (optInfo->verbose) { printInfo(InfoProcessNullStatement); }
-		rc = addStatement(optInfo, progInfo, NULL_KEYWORD);	
+		rc = addStatement(optInfo, progInfo, name, NULL_KEYWORD);	
 	} else {
 		if (optInfo->verbose) { printInfo(InfoProcessJCLCommand); }
-		rc = addStatement(optInfo, progInfo, JCLCMD_KEYWORD);	
+		rc = addStatement(optInfo, progInfo, name, JCLCMD_KEYWORD);	
 	}		
 	return rc;
 }
 
-static JCLScanMsg_T processStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column, ScanFn_T* scanner) {
-	return scanner(optInfo, progInfo, column);
+static JCLScanMsg_T processStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t nameEndOffset, size_t column, ScanFn_T* scanner) {
+	return scanner(optInfo, progInfo, nameEndOffset, column);
 }
 
 static int isJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
 	size_t i=0;
 	const char* keyword;
 	const char* text = &progInfo->jcl->lines->tail->text[column];
+	if (!wordlcmp(text, JES3CMD_PREFIX, JES3CMD_LEN)) {
+		if (text[JES3CMD_LEN] == ASTERISK) { return 0; } /* override "//*** ..." as a comment, not JES3 command */
+	}
 	while ((keyword = JES3ControlStatement[i].txt) != NULL) {		
 		if (!wordlcmp(text, keyword, JES3ControlStatement[i].len)) {
 			return 1;
@@ -735,9 +1108,30 @@ static int isJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size
 
 static JCLScanMsg_T processCommentOrControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
 	if (isJES3ControlStatement(optInfo, progInfo, column)) {
-		return processStatement(optInfo, progInfo, column, scanJES3ControlStatement);
+		return processStatement(optInfo, progInfo, 0, column, scanJES3ControlStatement);
 	} else {
-		return processStatement(optInfo, progInfo, column, scanCommentStatement); 
+		return processStatement(optInfo, progInfo, 0, column, scanCommentStatement); 
+	}
+}
+
+static int isJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+	size_t i=0;
+	const char* keyword;
+	const char* text = &progInfo->jcl->lines->tail->text[column];
+	while ((keyword = JES2ControlStatement[i].txt) != NULL) {		
+		if (!wordlcmp(text, keyword, JES2ControlStatement[i].len)) {
+			return 1;
+		}
+		++i;
+	} 
+	return 0;
+}
+
+static JCLScanMsg_T processDelimeterOrControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
+	if (isJES2ControlStatement(optInfo, progInfo, column)) {
+		return processStatement(optInfo, progInfo, 0, column, scanJES2ControlStatement);
+	} else {
+		return NoError;
 	}
 }
 
@@ -752,39 +1146,39 @@ static JCLScanMsg_T processJCLStatementFirstLine(OptInfo_T* optInfo, ProgInfo_T*
 	keyword = &text[i];
 	
 	if (!wordcmp(keyword, DD_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+DD_KEYLEN, scanDDStatement); 
+		return processStatement(optInfo, progInfo, column, i+DD_KEYLEN, scanDDStatement); 
 	} else if (!wordcmp(keyword, EXEC_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+EXEC_KEYLEN, scanExecStatement); 
+		return processStatement(optInfo, progInfo, column, i+EXEC_KEYLEN, scanExecStatement); 
 	} else if (!wordcmp(keyword, SET_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+SET_KEYLEN, scanSetStatement); 
+		return processStatement(optInfo, progInfo, column, i+SET_KEYLEN, scanSetStatement); 
 	} else if (!wordcmp(keyword, IF_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+IF_KEYLEN, scanIfStatement); 
+		return processStatement(optInfo, progInfo, column, i+IF_KEYLEN, scanIfStatement); 
 	} else if (!wordcmp(keyword, ELSE_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ELSE_KEYLEN, scanElseStatement); 
+		return processStatement(optInfo, progInfo, column, i+ELSE_KEYLEN, scanElseStatement); 
 	} else if (!wordcmp(keyword, ENDIF_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ENDIF_KEYLEN, scanEndifStatement); 
+		return processStatement(optInfo, progInfo, column, i+ENDIF_KEYLEN, scanEndifStatement); 
 	} else if (!wordcmp(keyword, JOB_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+JOB_KEYLEN, scanJobStatement); 
+		return processStatement(optInfo, progInfo, column, i+JOB_KEYLEN, scanJobStatement); 
 	} else if (!wordcmp(keyword, PROC_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+PROC_KEYLEN, scanProcStatement); 
+		return processStatement(optInfo, progInfo, column, i+PROC_KEYLEN, scanProcStatement); 
 	} else if (!wordcmp(keyword, PEND_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+PEND_KEYLEN, scanPendStatement); 
+		return processStatement(optInfo, progInfo, column, i+PEND_KEYLEN, scanPendStatement); 
 	} else if (!wordcmp(keyword, INCLUDE_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+INCLUDE_KEYLEN, scanIncludeStatement); 
+		return processStatement(optInfo, progInfo, column, i+INCLUDE_KEYLEN, scanIncludeStatement); 
 	} else if (!wordcmp(keyword, JCLLIB_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+JCLLIB_KEYLEN, scanJCLLibStatement); 
+		return processStatement(optInfo, progInfo, column, i+JCLLIB_KEYLEN, scanJCLLibStatement); 
 	} else if (!wordcmp(keyword, COMMAND_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+COMMAND_KEYLEN, scanCommandStatement); 
+		return processStatement(optInfo, progInfo, column, i+COMMAND_KEYLEN, scanCommandStatement); 
 	} else if (!wordcmp(keyword, CNTL_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+CNTL_KEYLEN, scanCntlStatement); 
+		return processStatement(optInfo, progInfo, column, i+CNTL_KEYLEN, scanCntlStatement); 
 	} else if (!wordcmp(keyword, ENDCNTL_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ENDCNTL_KEYLEN, scanEndCntlStatement); 
+		return processStatement(optInfo, progInfo, column, i+ENDCNTL_KEYLEN, scanEndCntlStatement); 
 	} else if (!wordcmp(keyword, OUTPUT_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+OUTPUT_KEYLEN, scanOutputStatement); 
+		return processStatement(optInfo, progInfo, column, i+OUTPUT_KEYLEN, scanOutputStatement); 
 	} else if (!wordcmp(keyword, XMIT_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+XMIT_KEYLEN, scanXMitStatement); 
+		return processStatement(optInfo, progInfo, column, i+XMIT_KEYLEN, scanXMitStatement); 
 	} else if (!wordcmp(keyword, PRINTDEV_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+PRINTDEV_KEYLEN, scanPrintDevStatement); 
+		return processStatement(optInfo, progInfo, column, i+PRINTDEV_KEYLEN, scanPrintDevStatement); 
 	} 
 	return processInvalidRecord(optInfo, progInfo, InvalidRecordUnknownType);
 }
@@ -800,36 +1194,62 @@ static JCLScanMsg_T processRestrictedJCLStatement(OptInfo_T* optInfo, ProgInfo_T
 	keyword = &text[i];
 	
 	if (!wordcmp(keyword, DD_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+DD_KEYLEN, scanDDStatement); 
+		return processStatement(optInfo, progInfo, column, i+DD_KEYLEN, scanDDStatement); 
 	} else if (!wordcmp(keyword, EXEC_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+EXEC_KEYLEN, scanExecStatement); 
+		return processStatement(optInfo, progInfo, column, i+EXEC_KEYLEN, scanExecStatement); 
 	} else if (!wordcmp(keyword, SET_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+SET_KEYLEN, scanSetStatement); 
+		return processStatement(optInfo, progInfo, column, i+SET_KEYLEN, scanSetStatement); 
 	} else if (!wordcmp(keyword, IF_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+IF_KEYLEN, scanIfStatement); 
+		return processStatement(optInfo, progInfo, column, i+IF_KEYLEN, scanIfStatement); 
 	} else if (!wordcmp(keyword, ELSE_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ELSE_KEYLEN, scanElseStatement); 
+		return processStatement(optInfo, progInfo, column, i+ELSE_KEYLEN, scanElseStatement); 
 	} else if (!wordcmp(keyword, ENDIF_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ENDIF_KEYLEN, scanEndifStatement); 
+		return processStatement(optInfo, progInfo, column, i+ENDIF_KEYLEN, scanEndifStatement); 
 	} else if (!wordcmp(keyword, PROC_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+PROC_KEYLEN, scanProcStatement); 
+		return processStatement(optInfo, progInfo, column, i+PROC_KEYLEN, scanProcStatement); 
 	} else if (!wordcmp(keyword, PEND_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+PEND_KEYLEN, scanPendStatement); 
+		return processStatement(optInfo, progInfo, column, i+PEND_KEYLEN, scanPendStatement); 
 	} else if (!wordcmp(keyword, INCLUDE_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+INCLUDE_KEYLEN, scanIncludeStatement); 
+		return processStatement(optInfo, progInfo, column, i+INCLUDE_KEYLEN, scanIncludeStatement); 
 	} else if (!wordcmp(keyword, JCLLIB_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+JCLLIB_KEYLEN, scanJCLLibStatement); 
+		return processStatement(optInfo, progInfo, column, i+JCLLIB_KEYLEN, scanJCLLibStatement); 
 	} else if (!wordcmp(keyword, COMMAND_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+COMMAND_KEYLEN, scanCommandStatement); 
+		return processStatement(optInfo, progInfo, column, i+COMMAND_KEYLEN, scanCommandStatement); 
 	} else if (!wordcmp(keyword, ENDCNTL_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+ENDCNTL_KEYLEN, scanEndCntlStatement); 
+		return processStatement(optInfo, progInfo, column, i+ENDCNTL_KEYLEN, scanEndCntlStatement); 
 	} else if (!wordcmp(keyword, XMIT_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+XMIT_KEYLEN, scanXMitStatement); 
+		return processStatement(optInfo, progInfo, column, i+XMIT_KEYLEN, scanXMitStatement); 
 	} else if (!wordcmp(keyword, OUTPUT_KEYWORD)) {
-		return processStatement(optInfo, progInfo, i+OUTPUT_KEYLEN, scanOutputStatement); 
+		return processStatement(optInfo, progInfo, column, i+OUTPUT_KEYLEN, scanOutputStatement); 
 	} else {
-		return processStatement(optInfo, progInfo, i, scanJCLCommand);
+		return processStatement(optInfo, progInfo, column, i, scanJCLCommand);
 	}
+}
+
+static JCLScanMsg_T processInlineRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo);
+
+static JCLScanMsg_T scanGenerateSYSINStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
+	JCLScanMsg_T rc;	
+	int parmStart = sizeof(GENERATED_SYSIN_DD)-1; 
+	int parmEnd = sizeof(GENERATED_SYSIN_DD);
+	if (optInfo->verbose) { printInfo(InfoProcessGenerateSYSINStatement); }
+	
+	rc = addStatementFromText(optInfo, progInfo, GENSYSIN_NAMELEN, DD_KEYWORD, GENSYSIN_NAME);	
+	if (rc != NoError) {
+		return rc;
+	}
+	if (rc == NoError) {
+		rc = scanParametersFromText(optInfo, progInfo, GENERATED_SYSIN_PREFIX_LEN, GENERATED_SYSIN_DD);
+	}		
+	if (rc != NoError) {
+		return rc;
+	}
+	progInfo->jcl->stmts->datasetType = InstreamDatasetStar;
+	progInfo->jcl->stmts->state = JCLInlineText;
+	strcpy(progInfo->jcl->stmts->delimiter, DEFAULT_DELIM);
+	rc = processInlineRecord(optInfo, progInfo);
+	
+	return rc;
 }
 
 static JCLScanMsg_T processJCLRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
@@ -852,46 +1272,48 @@ static JCLScanMsg_T processJCLRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 		} else if (text[1] == ASTERISK) {
 			return processDelimeterOrControlStatement(optInfo, progInfo, PREFIX_LEN);
 		} else {
-			return processStatement(optInfo, progInfo, 0, scanGenerateSYSINStatement); 		
+			return processStatement(optInfo, progInfo, 0, 0, scanGenerateSYSINStatement); 		
 		}
 	} else {
-		return processStatement(optInfo, progInfo, 0, scanGenerateSYSINStatement); 		
+		return processStatement(optInfo, progInfo, 0, 0, scanGenerateSYSINStatement); 		
 	}
 }
 
 static JCLScanMsg_T processInlineRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
-	const char* dlm = progInfo->jcl->stmts->delimiter;
-	size_t dlmlen = strlen(dlm);
+	char* dlm = progInfo->jcl->stmts->delimiter;
 	DatasetType_T dst = progInfo->jcl->stmts->datasetType;
 	const char* record = progInfo->jcl->lines->tail->text;
 	int terminateInstream = 0;
+	JCLScanMsg_T rc = NoError;
+	char* retainDelim = NULL;
 	
 	if (dst == InstreamDatasetData || dst == InstreamDatasetStar) {
-		if (!wordlcmp(record, dlm, dlmlen)) {
+		if (!wordlcmp(record, dlm, DELIM_LEN)) {
 			progInfo->jcl->stmts->datasetType = NoDataset;
 			progInfo->jcl->stmts->state = JCLNotContinued;
-			return NoError;
+			retainDelim = dlm;
+		}			
+	} 
+	if (dst != InstreamDatasetData) {
+		if (!wordlcmp(record, DEFAULT_DELIM, DELIM_LEN)) {
+			progInfo->jcl->stmts->state = JCLNotContinued;
+			progInfo->jcl->stmts->datasetType = NoDataset;	
+			retainDelim = DEFAULT_DELIM;
+		} else if (!wordlcmp(record, PREFIX, PREFIX_LEN)) {
+			progInfo->jcl->stmts->state = JCLNotContinued;	
+			progInfo->jcl->stmts->datasetType = NoDataset;
+			retainDelim = EMPTY_DELIM;
 		}
 	}
-	if (dst == InstreamDatasetData) {
-		return NoError;
-	}
-	
-	if (!wordlcmp(record, DEFAULT_DELIM, strlen(DEFAULT_DELIM))) {
-		progInfo->jcl->stmts->state = JCLNotContinued;
-		progInfo->jcl->stmts->datasetType = NoDataset;		
-		return NoError;
-	}
-	
-	if (!wordlcmp(record, PREFIX, PREFIX_LEN)) {
-		progInfo->jcl->stmts->state = JCLNotContinued;	
-		progInfo->jcl->stmts->datasetType = NoDataset;
-		return processJCLRecord(optInfo, progInfo);
-	}
 
-	return NoError;
+	rc = addToInlineData(optInfo, progInfo, record, 0, JCL_TXTLEN, retainDelim); 
+	
+	if (rc == NoError && !memcmp(retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+		rc = processJCLRecord(optInfo, progInfo);
+	}
+	
+	return rc;
 }
-
 static JCLScanMsg_T processContinuedComment(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	const char* text = progInfo->jcl->lines->tail->text;		
 	JCLScanMsg_T rc;
@@ -938,7 +1360,7 @@ static JCLScanMsg_T processJCLContinueConditional(OptInfo_T* optInfo, ProgInfo_T
 	}
 	rc = addToStatement(optInfo, progInfo);
 	if (rc == NoError) {
-		rc = scanConditional(optInfo, progInfo, PREFIX_LEN+1);
+		rc = scanConditional(optInfo, progInfo, PREFIX_LEN);
 	}
 	return rc;
 }
@@ -946,6 +1368,12 @@ static JCLScanMsg_T processJCLContinueConditional(OptInfo_T* optInfo, ProgInfo_T
 static JCLScanMsg_T processJCLContinueParameter(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	const char* text = progInfo->jcl->lines->tail->text;		
 	JCLScanMsg_T rc;
+	
+	if (text[0] == SLASH && text[1] == SLASH && text[2] == ASTERISK) {
+		appendComment(optInfo, progInfo, "\n", 0, 1); 
+		appendComment(optInfo, progInfo, text, PREFIX_LEN+1, JCL_TXTLEN-PREFIX_LEN);
+		return NoError;
+	}
 	
 	if (text[0] != SLASH || text[1] != SLASH || text[2] != BLANK) {
 		return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedParameter);
@@ -963,7 +1391,7 @@ static JCLScanMsg_T processJES3ContinueDataset(OptInfo_T* optInfo, ProgInfo_T* p
 	
 	if (text[0] == SLASH && text[1] == SLASH && text[2] == ASTERISK) {
 		if (!wordlcmp(&text[3], JES3ENDDATASET_PREFIX, JES3ENDDATASET_LEN)) {
-			rc = addStatement(optInfo, progInfo, JES3_KEYWORD);
+			rc = addStatement(optInfo, progInfo, 0, JES3_KEYWORD);
 			progInfo->jcl->stmts->state = JCLNotContinued;
 		}
 	} else {
@@ -1039,14 +1467,23 @@ JCLScanMsg_T scanJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 		}
 		++lineNum;
 	} while (scanRC == NoError);
+	if (scanRC == InputEOF) {
+		scanRC = NoError;
+	} else {
+		printError(ErrorScanningJCL, scanRC);
+	}
 	
 	fclose(progInfo->jcl->infp);
 	progInfo->jcl->infp = NULL;
-	
-	if (optInfo->debug) {
-		printStatements(optInfo, progInfo);
+
+    if (optInfo->debug) {
+            printDebugStatements(optInfo, progInfo);
+    }	
+	if (optInfo->verboseStatements) {
+		printVerboseStatements(optInfo, progInfo);
 	}
-	return NoError;
+	
+	return scanRC;
 }
 
 JCLScanMsg_T establishInput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {

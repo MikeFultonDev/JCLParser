@@ -1,5 +1,26 @@
-Scanned Stmt: 000000001 //IBMUSERC JOB 'CRTVL',MSGCLASS=S,NOTIFY=&SYSUID,REGION=0M
-Scanned Stmt: 000000002 //MYPGM EXEC PGM=IEFBR14
-Scanned Stmt: 000000003 //MYDD DD *
-Scanned Stmt: 000000004 //NEXTDD DD *,DLM='!!'
-Scanned Stmt: 000000005 //LASTDD DD DATA,DLM='zz'
+//IBMUSERC JOB 'CRTVL',MSGCLASS=S,NOTIFY=&SYSUID,REGION=0M
+//MYPGM EXEC PGM=IEFBR14
+//MYDD DD *
+           .                                                           
+           .                                                           
+          data                                                         
+           .                                                           
+           .                                                           
+//NEXTDD DD *,DLM='!!'
+           .                                                           
+           .                                                           
+          data                                                         
+           .                                                           
+           .                                                           
+!!
+//LASTDD DD DATA,DLM='zz'
+           .                                                           
+/*                                                                     
+           .                                                           
+//                                                                     
+         \\//                                                          
+//                                                                     
+           .                                                           
+           .                                                           
+zz
+//*

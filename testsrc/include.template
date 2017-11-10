@@ -1,8 +1,8 @@
 Stmt 000000001      JOB Lines:01 Ptr:********
 Stmt 000000002   JCLLIB Lines:01 Ptr:********
 Stmt 000000003  INCLUDE Lines:01 Ptr:********
-Stmt 000000004     NULL Lines:01 Ptr:********
+Stmt 000000004          Lines:01 Ptr:********
 Stmt 000000005      JOB Lines:01 Ptr:********
 Stmt 000000006   JCLLIB Lines:03 Ptr:********
 Stmt 000000007  INCLUDE Lines:01 Ptr:********
-Stmt 000000008     NULL Lines:01 Ptr:********
+Stmt 000000008          Lines:01 Ptr:********
