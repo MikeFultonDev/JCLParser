@@ -34,6 +34,18 @@
 		UnableToReopenOutput=13,
 		InvalidRecordEncountered=14,
 		ErrorScanningJCL=15,
+		
+		/* gap */
+		
+		InvalidRecordUnknownType=40,
+		InvalidRecordSlashSlashUnk=41,
+		InvalidRecordSlashUnk=42,
+		InvalidRecordUnk=43,
+		InvalidRecordContinuedComment=44,
+		InvalidRecordContinuedStringNoSlash=45,
+		InvalidRecordContinuedCommentTooFewBlanks=46,
+		InvalidRecordContinuedConditional=47,
+		InvalidRecordContinuedParameter=48		
 	} JCLScanMsg_T;
 	
 	/*
@@ -107,6 +119,6 @@
 #endif
 	void printHelp(const char* pgmName);
 
-	void printError(JCLScanMsg_T pfm, ...);
-	void printInfo(JCLScanInfo_T pim, ...);
+	JCLScanMsg_T printError(JCLScanMsg_T pfm, ...);
+	JCLScanInfo_T printInfo(JCLScanInfo_T pim, ...);
 #endif	

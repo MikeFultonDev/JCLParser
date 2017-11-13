@@ -498,10 +498,11 @@ static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, cons
 	char* orig = line->commentText;
 	char* next;
 	size_t origLen;
-	size_t newLen = end-start;	
+	size_t newLen;	
 	
 	skipBlanks(text, &start, &end); 
-	
+	newLen = end-start;
+
 	if (orig) {
 		origLen = strlen(orig);
 	} else {
@@ -533,7 +534,7 @@ static int isValidDelimiter(const char* text) {
 	}
 	return 1;
 }
-
+	
 static JCLScanMsg_T scanParametersFromText(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column, char* text) {
 	size_t i = column;
 	int inString = (progInfo->jcl->stmts->state == JCLContinueString);
@@ -563,7 +564,7 @@ static JCLScanMsg_T scanParametersFromText(OptInfo_T* optInfo, ProgInfo_T* progI
 				}
 				end=i;
 				commentStart = i;
-				commentEnd = JCL_TXTLEN-1;
+				commentEnd = JCL_TXTLEN;
 				break;
 			}
 			++i;
@@ -797,6 +798,7 @@ static JCLScanMsg_T addToInlineData(OptInfo_T* optInfo, ProgInfo_T* progInfo, co
 		if (!newBytes) {
 			return InternalOutOfMemory;
 		}
+
 		if (data->bytes) {
 			memcpy(newBytes, data->bytes, data->len);
 			free(data->bytes);
@@ -843,18 +845,16 @@ static JCLScanMsg_T scanConditional(OptInfo_T* optInfo, ProgInfo_T* progInfo, si
 	return NoError;
 }
 
-static JCLScanMsg_T processInvalidRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo, InvalidRecordType_T invalidType) {
-	printError(InvalidRecordEncountered, progInfo->jcl->lines->curLine, invalidType);	
-	return InputEOF;
-}
-
 static JCLScanMsg_T scanJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
-	const char* text = progInfo->jcl->lines->tail->text;	
+	const char* text = progInfo->jcl->lines->tail->text;
+	if (optInfo->useJES3) {
+		return 0;
+	}
 	if (optInfo->verbose) { printInfo(InfoProcessJES2ControlStatement); }
 	rc = addStatementFromText(optInfo, progInfo, name, JES2_KEYWORD, &text[PREFIX_LEN]);
 	if (rc == NoError) {
-		rc = scanParameters(optInfo, progInfo, column);
+		rc = addSubParm(optInfo, progInfo, &text[PREFIX_LEN], JCL_TXTLEN-PREFIX_LEN+1, NULL, 0, NULL, 1);
 	}		
 	return rc;
 }
@@ -862,6 +862,9 @@ static JCLScanMsg_T scanJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* pro
 static JCLScanMsg_T scanJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	JCLScanMsg_T rc;
 	const char* text = progInfo->jcl->lines->tail->text;	
+	if (!optInfo->useJES3) {
+		return NoError;
+	}
 	if (optInfo->verbose) { printInfo(InfoProcessJES3ControlStatement); }
 	rc = addStatementFromText(optInfo, progInfo, name, JES3_KEYWORD, &text[PREFIX_LEN]);
 	if (!wordlcmp(&text[column], JES3DATASET_PREFIX, JES3DATASET_LEN)) {
@@ -869,7 +872,7 @@ static JCLScanMsg_T scanJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* pro
 		progInfo->jcl->stmts->state = JCLContinueJES3DatasetControlStatement;
 	} else {
 		if (rc == NoError) {
-			rc = scanParameters(optInfo, progInfo, column);
+			rc = addSubParm(optInfo, progInfo, &text[PREFIX_LEN], JCL_TXTLEN-PREFIX_LEN+1, NULL, 0, NULL, 1);
 		}		
 	}
 	return rc;
@@ -1067,9 +1070,6 @@ static JCLScanMsg_T scanCommentStatement(OptInfo_T* optInfo, ProgInfo_T* progInf
 	return rc;
 }
 
-
-
-
 static JCLScanMsg_T scanJCLCommand(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
 	/*
 	 * JCL Command must be one record. scanCommandStatement() gets driven for the 'COMMAND' statement
@@ -1094,6 +1094,9 @@ static int isJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size
 	size_t i=0;
 	const char* keyword;
 	const char* text = &progInfo->jcl->lines->tail->text[column];
+	if (!optInfo->useJES3) {
+		return 0;
+	}
 	if (!wordlcmp(text, JES3CMD_PREFIX, JES3CMD_LEN)) {
 		if (text[JES3CMD_LEN] == ASTERISK) { return 0; } /* override "//*** ..." as a comment, not JES3 command */
 	}
@@ -1118,6 +1121,9 @@ static int isJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size
 	size_t i=0;
 	const char* keyword;
 	const char* text = &progInfo->jcl->lines->tail->text[column];
+	if (optInfo->useJES3) {
+		return 0;
+	}	
 	while ((keyword = JES2ControlStatement[i].txt) != NULL) {		
 		if (!wordlcmp(text, keyword, JES2ControlStatement[i].len)) {
 			return 1;
@@ -1180,7 +1186,7 @@ static JCLScanMsg_T processJCLStatementFirstLine(OptInfo_T* optInfo, ProgInfo_T*
 	} else if (!wordcmp(keyword, PRINTDEV_KEYWORD)) {
 		return processStatement(optInfo, progInfo, column, i+PRINTDEV_KEYLEN, scanPrintDevStatement); 
 	} 
-	return processInvalidRecord(optInfo, progInfo, InvalidRecordUnknownType);
+	return printError(InvalidRecordUnknownType, keyword, progInfo->jcl->lines->curLine);
 }
 
 static JCLScanMsg_T processRestrictedJCLStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t column) {
@@ -1267,7 +1273,7 @@ static JCLScanMsg_T processJCLRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 				/*
 				 * This really is an error... 
 				 */
-				return processInvalidRecord(optInfo, progInfo, InvalidRecordSlashSlashUnk);
+				return printError(InvalidRecordSlashSlashUnk, text[2], progInfo->jcl->lines->curLine);
 			}
 		} else if (text[1] == ASTERISK) {
 			return processDelimeterOrControlStatement(optInfo, progInfo, PREFIX_LEN);
@@ -1306,7 +1312,7 @@ static JCLScanMsg_T processInlineRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo
 		}
 	}
 
-	rc = addToInlineData(optInfo, progInfo, record, 0, JCL_TXTLEN, retainDelim); 
+	rc = addToInlineData(optInfo, progInfo, record, 0, JCL_TXTLEN+1, retainDelim); 
 	
 	if (rc == NoError && !memcmp(retainDelim, EMPTY_DELIM, DELIM_LEN)) {
 		rc = processJCLRecord(optInfo, progInfo);
@@ -1320,7 +1326,7 @@ static JCLScanMsg_T processContinuedComment(OptInfo_T* optInfo, ProgInfo_T* prog
 	size_t i;
 	
 	if (text[0] != SLASH || text[1] != SLASH || text[2] != BLANK) {
-		return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedComment);
+		return printError(InvalidRecordContinuedComment, text, progInfo->jcl->lines->curLine);
 	}
 
 	rc = addToStatement(optInfo, progInfo);
@@ -1336,11 +1342,11 @@ static JCLScanMsg_T processJCLContinueString(OptInfo_T* optInfo, ProgInfo_T* pro
 	size_t i;
 	
 	if (text[0] != SLASH || text[1] != SLASH) {
-		return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedStringNoSlash);
+		return printError(InvalidRecordContinuedStringNoSlash, text, progInfo->jcl->lines->curLine);		
 	}
 	for (i=PREFIX_LEN; i<STRING_CONTINUE_COLUMN; ++i) {
 		if (text[i] != BLANK) {
-			return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedCommentTooFewBlanks);
+			return printError(InvalidRecordContinuedCommentTooFewBlanks, STRING_CONTINUE_COLUMN, text, STRING_CONTINUE_COLUMN, progInfo->jcl->lines->curLine);					
 		}
 	}
 	
@@ -1356,7 +1362,7 @@ static JCLScanMsg_T processJCLContinueConditional(OptInfo_T* optInfo, ProgInfo_T
 	JCLScanMsg_T rc;
 	
 	if (text[0] != SLASH || text[1] != SLASH || text[2] != BLANK) {
-		return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedConditional);
+		return printError(InvalidRecordContinuedConditional, text, progInfo->jcl->lines->curLine);							
 	}
 	rc = addToStatement(optInfo, progInfo);
 	if (rc == NoError) {
@@ -1376,7 +1382,7 @@ static JCLScanMsg_T processJCLContinueParameter(OptInfo_T* optInfo, ProgInfo_T* 
 	}
 	
 	if (text[0] != SLASH || text[1] != SLASH || text[2] != BLANK) {
-		return processInvalidRecord(optInfo, progInfo, InvalidRecordContinuedParameter);
+		return printError(InvalidRecordContinuedParameter, text, progInfo->jcl->lines->curLine);									
 	}
 	rc = addToStatement(optInfo, progInfo);
 	if (rc == NoError) {

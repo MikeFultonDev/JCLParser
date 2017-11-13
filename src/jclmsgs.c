@@ -13,6 +13,9 @@
 #include <stdarg.h>
 #include "jclmsgs.h"
 
+#define JCL2SH_ERR_PREFIX "JCL2SH"
+
+
 static const char* JCLScanMessage[] = {
 	"",
 	"At least %d argument must be specified.\n", 
@@ -30,6 +33,39 @@ static const char* JCLScanMessage[] = {
 	"Unable to re-open stdout for write.\n",
 	"Unexpected record encountered on line %d of JCL. Invalid Type: %d. Scanning terminated.\n",
 	"Error %d encountered reading JCL. Scanning terminated.\n",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
+	JCL2SH_ERR_PREFIX "001 Unknown type '%s' on line %d\n",
+	JCL2SH_ERR_PREFIX "002 Unexpected character '%c' after '//' on line %d\n",
+	JCL2SH_ERR_PREFIX "003 Unexpected character '%c' after '/' on line %d\n",
+	JCL2SH_ERR_PREFIX "004 Unexpected character %d on line %d\n",
+	JCL2SH_ERR_PREFIX "005 Unexpected text at start of line '%3.3s' processing continued comment on line %d. Expected '// '\n",
+	JCL2SH_ERR_PREFIX "006 Unexpected text at start of line '%2.2s' processing continued string on line %d. Expected '//'\n",
+	JCL2SH_ERR_PREFIX "007 Unexpected text at start of line '%.*s' processing continued comment. Expected %d blanks on line %d after '//'\n",
+	JCL2SH_ERR_PREFIX "008 Unexpected text at start of line '%3.3s' processing continued conditional on line %d. Expected '// '\n",
+	JCL2SH_ERR_PREFIX "009 Unexpected text at start of line '%3.3s' processing continued parameter on line %d. Expected '// '\n"	
 };
 
 static const char* JCLScanInfo[] = {
@@ -91,18 +127,20 @@ static const char* JCLScanInfo[] = {
 	"%s\n",
 };
 
-void printError(JCLScanMsg_T reason, ...) {
+JCLScanMsg_T printError(JCLScanMsg_T reason, ...) {
 	va_list arg_ptr;
 	va_start(arg_ptr, reason);
 	vfprintf(stderr, JCLScanMessage[reason], arg_ptr);
 	va_end(arg_ptr);
+	return reason;
 }
 
-void printInfo(JCLScanInfo_T reason, ...) {
+JCLScanInfo_T printInfo(JCLScanInfo_T reason, ...) {
 	va_list arg_ptr;
 	va_start(arg_ptr, reason);
 	vfprintf(stdout, JCLScanInfo[reason], arg_ptr);
 	va_end(arg_ptr);
+	return reason;
 }
 
 void printHelp(const char* progName) {

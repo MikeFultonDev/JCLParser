@@ -32,6 +32,7 @@
 		const char* arguments;
 		const char* inputFile;
 		const char* outputFile;
+		int useJES3:1;
 		int debug:1;
 		int verbose:1;
 		int verboseStatements:1;		

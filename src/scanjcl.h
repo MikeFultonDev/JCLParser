@@ -144,19 +144,6 @@
 	#define JES2XEQ_PREFIX        "XEQ"
 	#define JES2XMIT_PREFIX       "XMIT"
 	
-	typedef enum {
-		InvalidRecordUnknownType=1,
-		InvalidRecordSlashSlashUnk=2,
-		InvalidRecordSlashUnk=3,
-		InvalidRecordUnk=4,
-		InvalidRecordContinuedComment=5,
-		InvalidRecordContinuedStringNoSlash=6,
-		InvalidRecordContinuedCommentTooFewBlanks=7,
-		InvalidRecordContinuedConditional=8,
-		InvalidRecordContinuedParameter=9
-		
-	} InvalidRecordType_T;
-	
 	/* JCL Reference: Chapter 3. Format of Statements */
 	typedef enum {
 		JCLNotContinued=0,
