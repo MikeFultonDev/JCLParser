@@ -37,6 +37,10 @@ To run the tests:
 This will write results to the screen as it runs the testcases in the tests sub-directory. 
 All tests should run clean
 
+## Work to be done
+
+The scanning/parsing development is well underway. Writing the generator(s) is not done yet.
+
 ## Contributors
 
 Mike Fulton (IBM Canada) is the sole contributor at this point. I am happy to change this :)
