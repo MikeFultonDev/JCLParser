@@ -8,10 +8,6 @@
  * Contributors:
  *    Mike Fulton - initial implementation and documentation
  *******************************************************************************/
-
-
-
-
 #define _ALL_SOURCE_NO_THREADS
 #include <string.h>
 #include <stdio.h>
