@@ -51,16 +51,15 @@ JCLScanMsg_T genSH(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 
 	while (stmt) {
 		if (!strcmp(stmt->type, EXEC_KEYWORD)) {
-			fprintf("\nmvscmd --pgm=%s ", stmt->name);
+			fprintf(fp, "\nmvscmd --pgm=%s ", stmt->name);
 		} else if (!strcmp(stmt->type, DD_KEYWORD)) {
 			KeyValuePair_T* kvp = stmt->kvphead;
 			while (kvp) {
-				fprintf(" %s=%s", kvp->key.txt, kvp->val.txt);
+				fprintf(fp, " %s=%s", kvp->key.txt, kvp->val.txt);
 				kvp = kvp->next;
 			}
 
 		}
-
 		stmt=stmt->next;
 	}
 	return NoError;
