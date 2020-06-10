@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "scanjcl.h"
 #include "gensh.h"
 
 JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
@@ -22,7 +23,7 @@ JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 		return InternalOutOfMemory;
 	}	
 	if (optInfo->outputFile) {
-		progInfo->sh->outfp = fopen(optInfo->inputFile, "wb");
+		progInfo->sh->outfp = fopen(optInfo->outputFile, "wb");
 		if (!progInfo->sh->outfp) {
 			printError(UnableToOpenOutput, optInfo->outputFile);
 			return UnableToOpenOutput;
@@ -33,6 +34,29 @@ JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 			printError(UnableToReopenOutput);
 			return UnableToReopenOutput;
 		}	
+	}
+	return NoError;
+}
+
+JCLScanMsg_T genSH(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+	JCLStmts_T* stmts = progInfo->jcl->stmts;
+	FILE* fp = progInfo->sh->outfp;
+	JCLStmt_T* stmt;
+	char* indent;
+
+	if (!stmts) {
+		fprintf(fp, "No statements\n");
+		return NoError;
+	}
+	stmt = stmts->head;
+	while (stmt) {
+		if (!strcmp(stmt->type, EXEC_KEYWORD)) {
+			indent="";
+		} else {
+			indent=" ";
+		}
+		fprintf(fp, "%s%s %s\n", indent, stmt->type, stmt->name ? stmt->name : "");
+		stmt=stmt->next;
 	}
 	return NoError;
 }

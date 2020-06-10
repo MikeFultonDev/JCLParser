@@ -21,4 +21,5 @@
 	} GenSH_T;	
 
 	JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo);	
+	JCLScanMsg_T genSH(OptInfo_T* optInfo, ProgInfo_T* progInfo);
 #endif

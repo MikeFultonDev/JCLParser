@@ -63,6 +63,10 @@ int main(int argc, char* argv[]) {
 	if (rc != NoError) {
 		return 8;
 	}	
+	rc = genSH(&optInfo, &progInfo);	
+	if (rc != NoError) {
+		return 8;
+	}	
 	
 	return 0;
 }
