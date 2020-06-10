@@ -41,19 +41,26 @@ JCLScanMsg_T genSH(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	FILE* fp = progInfo->sh->outfp;
 	JCLStmt_T* stmt;
 	char* indent;
+	char* pgmName;
 
 	if (!stmts) {
 		fprintf(fp, "No statements\n");
 		return NoError;
 	}
 	stmt = stmts->head;
+
 	while (stmt) {
 		if (!strcmp(stmt->type, EXEC_KEYWORD)) {
-			indent="";
-		} else {
-			indent=" ";
+			fprintf("\nmvscmd --pgm=%s ", stmt->name);
+		} else if (!strcmp(stmt->type, DD_KEYWORD)) {
+			KeyValuePair_T* kvp = stmt->kvphead;
+			while (kvp) {
+				fprintf(" %s=%s", kvp->key.txt, kvp->val.txt);
+				kvp = kvp->next;
+			}
+
 		}
-		fprintf(fp, "%s%s %s\n", indent, stmt->type, stmt->name ? stmt->name : "");
+
 		stmt=stmt->next;
 	}
 	return NoError;
