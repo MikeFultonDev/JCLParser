@@ -24,6 +24,7 @@ fi
 
 . ./setenv.sh
 export STEPLIB=${CHLQ}.SCCNCMP
+mkdir -p bin
 cd bin
 rm -f jcl2sh *.o *.lst *.dbg
 c89 -c ${CC_OPTS} -Wc,xplink,gonum,offset,langlvl\(extended\),list\(./\) ../src/jcl2sh.c
