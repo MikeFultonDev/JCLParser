@@ -1,9 +1,4 @@
 /*******************************************************************************
- * Copyright (c) 2017 IBM.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
  *    Mike Fulton - initial implementation and documentation
@@ -32,11 +27,11 @@
 		const char* arguments;
 		const char* inputFile;
 		const char* outputFile;
-		int useJES3:1;
-		int debug:1;
-		int verbose:1;
-		int verboseStatements:1;		
-		int help:1;
+		unsigned int useJES3:1;
+		unsigned int debug:1;
+		unsigned int verbose:1;
+		unsigned int verboseStatements:1;		
+		unsigned int help:1;
 	} OptInfo_T;
 	
 	struct Option;

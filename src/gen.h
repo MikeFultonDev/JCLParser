@@ -3,16 +3,26 @@
  * Contributors:
  *    Mike Fulton - initial implementation and documentation
  *******************************************************************************/
-#ifndef __JCL2SH__
-	#define __JCL2SH__ 1
+
+#ifndef __GEN__
+	#define __GEN__ 1
+	
+	#include "jclargs.h"
+	#include "jclmsgs.h"
 	
 	#include <stdio.h>
 	
 	typedef struct JCL JCL_T;
-	typedef struct GenSH GenSH_T;
-	typedef struct {
+
+	typedef struct Gen {
+		FILE* outfp;
+	} Gen_T;	
+
+	typedef struct ProgInfo {
 		JCL_T* jcl;
-		GenSH_T*    sh;
+		Gen_T* gen;
 	} ProgInfo_T;
-	
+
+	JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo);	
+	JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo);
 #endif

@@ -17,7 +17,7 @@
 #include "jclargs.h"
 #include "jclmsgs.h"
 #include "scanjcl.h"
-#include "gensh.h"
+#include "gen.h"
 
 static JCLScanMsg_T establishEnvironment(void) {
 	return NoError;
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
 	if (rc != NoError) {
 		return 8;
 	}	
-	rc = genSH(&optInfo, &progInfo);	
+	rc = genJCL(&optInfo, &progInfo);	
 	if (rc != NoError) {
 		return 8;
 	}	

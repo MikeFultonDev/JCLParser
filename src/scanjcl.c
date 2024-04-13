@@ -1,9 +1,4 @@
 /*******************************************************************************
- * Copyright (c) 2017 IBM.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
  *    Mike Fulton - initial implementation and documentation
@@ -14,6 +9,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "scanjcl.h"
+#include "gen.h"
 	
 const static VarStr_T JES3ControlStatement[] = {
 	{sizeof(JES3CMD_PREFIX)-1, JES3CMD_PREFIX },
@@ -54,7 +50,7 @@ static size_t isNational(char c) {
 	return (c == ATSIGN || c == DOLLARSIGN || c == POUNDSIGN);
 }
 
-static size_t isValidName(const const char* buffer, size_t* nameLen) {
+static size_t isValidName(const char* buffer, size_t* nameLen) {
 	size_t i;
 	size_t dotLocation = 0;
 	*nameLen = 0; 

@@ -31,7 +31,7 @@ JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	return NoError;
 }
 
-JCLScanMsg_T gen(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	JCLStmts_T* stmts = progInfo->jcl->stmts;
 	FILE* fp = progInfo->gen->outfp;
 	JCLStmt_T* stmt;
@@ -45,16 +45,35 @@ JCLScanMsg_T gen(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	stmt = stmts->head;
 
 	while (stmt) {
-		if (!strcmp(stmt->type, EXEC_KEYWORD)) {
-			fprintf(fp, "\nmvscmd --pgm=%s ", stmt->name);
-		} else if (!strcmp(stmt->type, DD_KEYWORD)) {
-			KeyValuePair_T* kvp = stmt->kvphead;
-			while (kvp) {
-				fprintf(fp, " %s=%s", kvp->key.txt, kvp->val.txt);
-				kvp = kvp->next;
+		if (!strcmp(stmt->type, COMMENT_KEYWORD)) {
+			fprintf(fp, "//* Comment removed");
+		} else if (!strcmp(stmt->type, JES2_KEYWORD)) {
+			fprintf(fp, "/*%s %s ", stmt->name, stmt->type);
+		} else if (stmt->name && stmt->type) {
+			fprintf(fp, "//%s %s ", stmt->name, stmt->type);
+		} else if (stmt->name && !stmt->type) {
+			fprintf(fp, "//%s ", stmt->name);
+		} else if (!stmt->name && stmt->type) {
+			fprintf(fp, "//        %s ", stmt->type);
+		} else /* if (!stmt->name && !stmt->type) */ {
+			; /* this is just a comment */
+		} 
+		KeyValuePair_T* kvp = stmt->kvphead;
+		while (kvp) {
+			if (kvp->key.len > 0 && kvp->val.len > 0) {
+				fprintf(fp, "%s=%s", kvp->key.txt, kvp->val.txt);
+			} else if (kvp->key.len > 0) {
+				fprintf(fp, ",%s", kvp->key.txt);
+			} else {
+				; /* this is just a comment */
 			}
-
+			
+			if (kvp->hasNewline && (kvp->next != NULL)) {
+				fprintf(fp, ",\n//        ");
+			}
+			kvp = kvp->next;
 		}
+		fprintf(fp, "\n");
 		stmt=stmt->next;
 	}
 	return NoError;
