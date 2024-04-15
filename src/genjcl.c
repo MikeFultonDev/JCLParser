@@ -32,49 +32,64 @@ JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 }
 
 JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
+	size_t stmtNum = 0;
 	JCLStmts_T* stmts = progInfo->jcl->stmts;
-	FILE* fp = progInfo->gen->outfp;
-	JCLStmt_T* stmt;
-	char* indent;
-	char* pgmName;
-
-	if (!stmts) {
-		fprintf(fp, "No statements\n");
-		return NoError;
-	}
-	stmt = stmts->head;
-
-	while (stmt) {
-		if (!strcmp(stmt->type, COMMENT_KEYWORD)) {
-			fprintf(fp, "//* Comment removed");
-		} else if (!strcmp(stmt->type, JES2_KEYWORD)) {
-			fprintf(fp, "/*%s %s ", stmt->name, stmt->type);
-		} else if (stmt->name && stmt->type) {
-			fprintf(fp, "//%s %s ", stmt->name, stmt->type);
-		} else if (stmt->name && !stmt->type) {
-			fprintf(fp, "//%s ", stmt->name);
-		} else if (!stmt->name && stmt->type) {
-			fprintf(fp, "//        %s ", stmt->type);
-		} else /* if (!stmt->name && !stmt->type) */ {
-			; /* this is just a comment */
-		} 
-		KeyValuePair_T* kvp = stmt->kvphead;
-		while (kvp) {
-			if (kvp->key.len > 0 && kvp->val.len > 0) {
-				fprintf(fp, "%s=%s", kvp->key.txt, kvp->val.txt);
-			} else if (kvp->key.len > 0) {
-				fprintf(fp, ",%s", kvp->key.txt);
+	JCLStmt_T* cur = stmts->head;
+	while (cur != NULL) {
+		if (!strcmp(cur->type, COMMENT_KEYWORD)) {
+			printInfo(InfoScannedComment, cur->scanhead->commentText);
+		} else {
+			if (!strcmp(cur->type, JES2_KEYWORD)) {
+				printInfo(InfoScannedJES2ControlStatement);
+			} else if (!strcmp(cur->type, JES3_KEYWORD)) {
+				printInfo(InfoScannedJES3ControlStatement);
 			} else {
-				; /* this is just a comment */
+				if (!cur->name) {
+					printInfo(InfoScannedStatementNoName, cur->type); 
+				} else {
+					printInfo(InfoScannedStatement, cur->name, cur->type); 
+				}	
 			}
-			
-			if (kvp->hasNewline && (kvp->next != NULL)) {
-				fprintf(fp, ",\n//        ");
+			if (cur->conditional) {
+				printInfo(InfoScannedIFStatement, cur->conditional->text);
 			}
-			kvp = kvp->next;
+			KeyValuePair_T* kvp = cur->kvphead;
+			if (kvp == NULL) {
+				printInfo(InfoNewLine);
+			}
+			while (kvp != NULL) {
+				if (!kvp->val.txt) {
+					printInfo(InfoKeyOnly, kvp->key.txt);
+				} else {
+					printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
+				}
+				if (kvp->next != NULL) {
+					printInfo(InfoSeparator);
+				}
+				if (kvp->comment) {
+					printInfo(InfoComment, kvp->comment);
+				}
+				if (kvp->next == NULL || kvp->hasNewline) {
+					printInfo(InfoNewLine);
+				}
+				if (kvp->hasNewline && kvp->next != NULL) {
+					printInfo(InfoStmtPrefix);
+				}
+				kvp = kvp->next;
+			}
+			if (cur->data) {
+				if (cur->data->bytes && (cur->data->len > 0)) {
+					fwrite(cur->data->bytes, cur->data->len, 1, stdout);
+				}
+
+				if (cur->data->retainDelim) {
+					if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+						printInfo(InfoScannedDelimiter, cur->data->retainDelim);
+					}
+				}
+			}
 		}
-		fprintf(fp, "\n");
-		stmt=stmt->next;
+		cur = cur->next;
 	}
 	return NoError;
 }
