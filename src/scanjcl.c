@@ -521,6 +521,9 @@ static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, cons
 }
 	
 static int isValidDelimiter(const char* text) {
+	if (text == NULL) {
+		return 0;
+	}
 	size_t len = strlen(text);
 	if (len != QUOTED_DELIM_LEN) {
 		return 0;
@@ -1310,7 +1313,7 @@ static JCLScanMsg_T processInlineRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo
 
 	rc = addToInlineData(optInfo, progInfo, record, 0, JCL_TXTLEN+1, retainDelim); 
 	
-	if (rc == NoError && !memcmp(retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+	if (rc == NoError && retainDelim != NULL && !memcmp(retainDelim, EMPTY_DELIM, DELIM_LEN)) {
 		rc = processJCLRecord(optInfo, progInfo);
 	}
 	
