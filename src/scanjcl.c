@@ -568,6 +568,13 @@ static JCLScanMsg_T scanParametersFromText(OptInfo_T* optInfo, ProgInfo_T* progI
 			}
 			++i;
 		}
+		/*
+		 * Catch the special case that column 70 has a comma in it - no blank required
+		 * after the comma.
+		 */
+		if (!inString && (text[JCL_TXTLEN-1] == COMMA)) {
+			inParameter = 1;
+		}
 		skipBlanks(text, &commentStart, &commentEnd);			
 		rc = addScannedLine(optInfo, progInfo, text, start, end, commentStart, commentEnd);
 	}
