@@ -1,6 +1,8 @@
 # Synopsis
 
-This project enables z/OS developers to generate a shell script or JCL from a JCL file
+This project enables z/OS developers to generate a shell script or JCL from a JCL file.
+It should probably be renamed to something other than JCL2SH since it is intended to be able to target 
+multiple things.
 
 ## Code Example
 
