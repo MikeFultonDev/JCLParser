@@ -1,7 +1,7 @@
 #
 # Set up just for 'mac' build. For z/OS, use build.sh as a template
 #
-DEFAULT_MODE="OPT"
+DEFAULT_MODE="DEBUG"
 
 if [ -z "${1}" ]; then
     	mode=${DEFAULT_MODE};

@@ -268,7 +268,6 @@ static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) 
 	char* next;
 	size_t i;
 	size_t start = 0;
-	size_t end = strlen(curLine->parmText);
 	int hasNewline;
 	JCLScanMsg_T rc;
 
@@ -277,11 +276,18 @@ static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) 
 	int curValue = -1;
 	int parenNest = 0;
 	JCLParmContext_T prevContext = context;
+	size_t end;
 	
-	text = copyParmText(curLine);
-	if (!text) {
-		return InternalOutOfMemory;
-	}
+	if (curLine->parmText) {
+		end = strlen(curLine->parmText);
+		text = copyParmText(curLine);
+		if (!text) {
+			return InternalOutOfMemory;
+		}	
+	} else {
+		end = start;
+		text = NULL;
+	} 
 	
 	while (curLine != NULL) {
 		for (i=start; i<end; ++i) {
