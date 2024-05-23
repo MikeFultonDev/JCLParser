@@ -24,9 +24,28 @@
 	#define ASTERISK   '*'
 	#define BLANK      ' '
 	#define EQUALS     '='
+
+#if defined(OEMVS)
+  #if (__CHARSET_LIB == 1)
+	#define ATSIGN     '@'
+	#define DOLLARSIGN '$'
+	#define POUNDSIGN  '#'
+  #else
+    /* 
+	 * If we are on z/OS AND we are not compiling source code in ASCII,
+	 * THEN use hard-coded hex values for the National characters 
+	 * in case a code page other than 1047 is in use.
+	 */
 	#define ATSIGN     0x7C
 	#define DOLLARSIGN 0x5B
 	#define POUNDSIGN  0x7B
+  #endif
+#else
+	#define ATSIGN     '@'
+	#define DOLLARSIGN '$'
+	#define POUNDSIGN  '#'
+#endif
+
 	#define QUOTE      '\''
 	#define COMMA      ','
 	#define LPAREN     '('
