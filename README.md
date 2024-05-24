@@ -35,7 +35,7 @@ To install jcl2jcl:
 
 ## Building on z/OS
 
-- Use [Z Open Tools](https://github.com/ZOSOpenTools) to download cmake, ninja, gnu make, and install clang. 
+- Use [z/OS Open Tools](https://github.com/ZOSOpenTools) to download cmake, ninja, gnu make, and install clang. 
 - export CLANG_ROOT to the root directory where you installed the clang compiler.
 - Generate build files if first build:
 ```
