@@ -1,7 +1,7 @@
 #set -x
 . ./setenv.sh 
 
-cd tests
+cd ../alttest
 rm -f *.actual
 
 if [ -z $1 ] ; then

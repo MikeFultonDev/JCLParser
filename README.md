@@ -1,64 +1,50 @@
 # Synopsis
 
-This project enables z/OS developers to generate a shell script or JCL from a JCL file.
-It should probably be renamed to something other than JCL2SH since it is intended to be able to target 
-multiple things.
+This project enables z/OS developers to parse JCL and to then walk the parse tree.
+The default build creates a `jcl2jcl` program that can be used to just generate JCL from JCL.
+This is meant for testing and understanding of the code. A real use case would be to walk the
+parse trees to do some sort of analysis.
+
+The `altsrc` and `alttest` and `alttestsrc` directories are historical and were used for testing
+the parser was working well. I am changing over to now just generate JCL from JCL so that I can 'diff' 
+the output.
 
 ## Code Example
 
-Here is an example of **jcl2sh** being used to convert PDS member IBMUSER.TEST.JCL(UPDATE) to update.sh
-
-jcl2sh <//'IBMUSER.TEST.JCL\(UPDATE\) >./update.sh
-
-Here is an example of **jcl2jcl** being used to convert orig.jcl to update.jcl
+Here is an example of **jcl2jcl** being used to parse orig.jcl and print it out.
 
 jcl2jcl --input=testsrc/commented.jcl
 
-Both programs probably work either on z/OS or off. jcl2jcl was set up for 'off z/OS' and jcl2sh was set up for 'on z/OS'
+The code works on z/OS or off. It has been tested on z/OS and on MacOS using clang.
 
 ## Motivation
 
 I am not a big fan of JCL, even though I have worked on z/OS forever.
 I also try to use Unix System Services as much as possible to develop software.
-jcl2sh generates a 'sh' program that uses the mvscmd/mvscmdauth services for invoking MVS executables
 jcl2jcl generates JCL from JCL - which can be handy if you want to 'normalize' or 'clean up' JCL.
 
 ## Installation
 
-To install jcl2sh:
-
-- copy the files to z/OS Unix System Services directory. For this example, we assume it is /u/ibmuser/JCL2SH
-- cd to the directory (/u/ibmuser/JCL2SH)
-- edit setenv.sh to point to the various MVS programs that will be tested, and to specify where your code was copied to.
-- edit build.sh if required to point to your C compiler and assembler, then run the script to build the program.
-- run build.sh: build.sh
-- The assemble, compile and link should be 'clean' and will produce a file called 'jcl2sh'
-
 To install jcl2jcl:
 
-- clone this repo
-- cd to the repo (JCL2SH)
-- edit buildmac.sh to build for your Mac (or tweak it for another system)
-- run buildmac.sh
-- The assemble, compile and link should have just a few warnings and will produce a file called 'jcl2jcl'
+- copy the files to z/OS Unix System Services directory. For this example, we assume it is `/u/ibmuser/JCLParser`
+- cd to the directory (`/u/ibmuser/JCLParser`)
+- install CMake and Ninja if you haven't already and use the provided CMake code. 
+- Alternately, just compile all the C code in `src` and link it.
+- The resultant program should be called `jcl2jcl` to use the sample parser.
 
 ## API Reference
 
-To get started reading the code, begin in jcl2sh.c, which has 'main' and drives all the functions in the other files.
+To get started reading the code, begin in `jcl2jcl.c`, which has `main` and drives all the functions in the other files.
 
 ## Tests
 
-To run the tests:
-
-- cd to the directory (e.g. /u/ibmuser/JCL2SH)
-- runTests.sh
-
-This will write results to the screen as it runs the testcases in the tests sub-directory.
-All tests should run clean
+To Be Updated 
 
 ## Work to be done
 
-The scanning/parsing development is well underway. Writing the generator(s) is not done yet.
+The parser is complete as far as I know. Bug reports welcome. 
+Providing interesting tools with the parser is TBD. 
 
 ## Contributors
 
