@@ -745,10 +745,8 @@ static void printVerboseStatements(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 					fwrite(cur->data->bytes, cur->data->len, 1, stdout);
 				}
 
-				if (cur->data->retainDelim) {
-					if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
-						printInfo(InfoScannedDelimiter, cur->data->retainDelim);
-					}
+				if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+					printInfo(InfoScannedDelimiter, cur->data->retainDelim);
 				}
 			}
 		}
@@ -1110,7 +1108,7 @@ static int isJES3ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size
 		return 0;
 	}
 	if (!wordlcmp(text, JES3CMD_PREFIX, JES3CMD_LEN)) {
-		if (text[JES3CMD_LEN] == ASTERISK) { return 0; } /* override "//*** ..." as a comment, not JES3 command */
+		if (text[JES3CMD_LEN] == ASTERISK) { return 0; } /* override "/ / * * * ..." as a comment, not JES3 command */
 	}
 	while ((keyword = JES3ControlStatement[i].txt) != NULL) {		
 		if (!wordlcmp(text, keyword, JES3ControlStatement[i].len)) {

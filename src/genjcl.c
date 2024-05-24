@@ -82,10 +82,8 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 					fwrite(cur->data->bytes, cur->data->len, 1, stdout);
 				}
 
-				if (cur->data->retainDelim) {
-					if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
-						printInfo(InfoScannedDelimiter, cur->data->retainDelim);
-					}
+				if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
+					printInfo(InfoScannedDelimiter, cur->data->retainDelim);
 				}
 			}
 		}
