@@ -29,9 +29,33 @@ To install jcl2jcl:
 
 - copy the files to z/OS Unix System Services directory. For this example, we assume it is `/u/ibmuser/JCLParser`
 - cd to the directory (`/u/ibmuser/JCLParser`)
-- install CMake and Ninja if you haven't already and use the provided CMake code. 
+- install CMake, Ninja, GNU Make, clang if you haven't already and use the provided CMake code. 
 - Alternately, just compile all the C code in `src` and link it.
 - The resultant program should be called `jcl2jcl` to use the sample parser.
+
+## Building on z/OS
+
+- Use [Z Open Tools](https://github.com/ZOSOpenTools) to download cmake, ninja, gnu make, and install clang. 
+- export CLANG_ROOT to the root directory where you installed the clang compiler.
+- Generate build files if first build:
+```
+cd JCLParser
+mkdir build
+cd build
+export CC=${CLANG_ROOT}/usr/lpp/IBM/oelcpp/v2r0/bin/clang
+export CXX=${CLANG_ROOT}/usr/lpp/IBM/oelcpp/v2r0/bin/clang++ 
+cmake ../
+```
+- Re-build code:
+```
+cmake --build .
+```
+
+This will create a jcl2jcl binary in your build directory
+
+## Building on MacOS
+
+- Tailor the files in the .vscode directory to suit your needs.
 
 ## API Reference
 
