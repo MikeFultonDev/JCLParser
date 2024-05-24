@@ -1,0 +1,24 @@
+{
+    "wcaForGP.enable": true,
+    "cmake.configureOnOpen": true,
+    "cSpell.words": [
+        "ATSIGN",
+        "DOLLARSIGN",
+        "ENDCNTL",
+        "ENDDATASET",
+        "ENDPROCESS",
+        "GENSYSIN",
+        "JCLCMD",
+        "JCLLIB",
+        "JCLSCAN",
+        "JOBPARM",
+        "NETACCT",
+        "POUNDSIGN",
+        "PRINTDEV",
+        "RPAREN",
+        "SIGNOFF",
+        "SIGNON",
+        "SYSIN",
+        "TXTLEN"
+    ]
+}
