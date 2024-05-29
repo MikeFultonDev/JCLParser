@@ -13,7 +13,7 @@
 JCLScanMsg_T establishOutput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	progInfo->gen = malloc(sizeof(Gen_T));
 	if (!progInfo->jcl) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_B;
 	}	
 	if (optInfo->outputFile) {
 		progInfo->gen->outfp = fopen(optInfo->outputFile, "wb");

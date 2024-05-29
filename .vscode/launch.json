@@ -10,7 +10,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/jcl2jcl",
-            "args": ["-v", "--input=${workspaceFolder}/testsrc/jes3.jcl"],
+            "args": ["-v", "--input=${workspaceFolder}/testsrc/coupledd.jcl"],
             "stopAtEntry": true,
             "cwd": "${fileDirname}",
             "environment": [],

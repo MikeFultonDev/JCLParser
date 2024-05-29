@@ -189,13 +189,13 @@ static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const c
 	KeyValuePair_T* kvp = malloc(sizeof(KeyValuePair_T));
 
 	if (!kvp) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_C;
 	}
 	kvp->next = NULL;
 	kvp->key.len = parmLen;
 	kvp->key.txt = malloc(parmLen+1);
 	if (!kvp->key.txt) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_D;
 	}	
 	/*copyNormalizedText(kvp->key.txt, parm, parmLen);*/
 	memcpy(kvp->key.txt, parm, parmLen);
@@ -211,14 +211,11 @@ static JCLScanMsg_T addSubParm(OptInfo_T* optInfo, ProgInfo_T* progInfo, const c
 		kvp->val.len = valLen;
 		kvp->val.txt = malloc(valLen+1);
 		if (!kvp->val.txt) {
-			return InternalOutOfMemory;
-		}			
+			return InternalOutOfMemory_E;
+		}
 		/*copyNormalizedText(kvp->val.txt, value, valLen);*/
 		memcpy(kvp->val.txt, value, valLen);		
-		kvp->val.txt[valLen] = '\0';
-		if (!kvp->val.txt) {
-			return InternalOutOfMemory;
-		}		
+		kvp->val.txt[valLen] = '\0';	
 	}
 	
 	if (!progInfo->jcl->stmts->tail->kvphead) {
@@ -282,7 +279,7 @@ static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) 
 		end = strlen(curLine->parmText);
 		text = copyParmText(curLine);
 		if (!text) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_G;
 		}	
 	} else {
 		end = start;
@@ -359,7 +356,7 @@ static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) 
 		if (curLine != NULL) {
 			next = copyParmText(curLine);
 			if (!next) {
-				return InternalOutOfMemory;
+				return InternalOutOfMemory_H;
 			}
 		} else {
 			next = NULL;
@@ -369,7 +366,7 @@ static JCLScanMsg_T scanSubParameters(OptInfo_T* optInfo, ProgInfo_T* progInfo) 
 			size_t nextEnd = strlen(next);			
 			char* temp = malloc(nextStart+nextEnd+1);
 			if (!temp) {
-				return InternalOutOfMemory;
+				return InternalOutOfMemory_I;
 			}
 			memcpy(temp, &text[curParm], nextStart);
 			memcpy(&temp[nextStart], next, nextEnd);
@@ -452,12 +449,12 @@ static JCLScanMsg_T addScannedLine(OptInfo_T* optInfo, ProgInfo_T* progInfo, con
 	char* commentText;
 	
 	if (!line) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_J;
 	}
 	if (parmEnd > parmStart) {
 		parmText = malloc(parmEnd-parmStart+1);	
 		if (!parmText) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_K;
 		}		
 	} else {
 		parmText = NULL;
@@ -466,7 +463,7 @@ static JCLScanMsg_T addScannedLine(OptInfo_T* optInfo, ProgInfo_T* progInfo, con
 	if (commentEnd > commentStart) {
 		commentText = malloc(commentEnd-commentStart+1);
 		if (!commentText) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_L;
 		}
 	} else {
 		commentText = NULL;	
@@ -512,7 +509,7 @@ static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, cons
 	}
 	next = malloc(origLen+newLen+1);
 	if (!next) {
-		return InternalOutOfMemory;		
+		return InternalOutOfMemory_W;
 	}
 	if (origLen != 0) {
 		memcpy(next, orig, origLen);
@@ -578,7 +575,7 @@ static JCLScanMsg_T scanParametersFromText(OptInfo_T* optInfo, ProgInfo_T* progI
 		 * Catch the special case that column 70 has a comma in it - no blank required
 		 * after the comma.
 		 */
-		if (!inString && (text[JCL_TXTLEN-1] == COMMA)) {
+		if (!inString && !commentStart && (text[JCL_TXTLEN-1] == COMMA)) {
 			inParameter = 1;
 		}
 		skipBlanks(text, &commentStart, &commentEnd);			
@@ -639,7 +636,7 @@ static JCLScanMsg_T addStatementFromText(OptInfo_T* optInfo, ProgInfo_T* progInf
 	char* name;
 
 	if (!stmt) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_M;
 	}
 
 	if (!progInfo->jcl->stmts->head) {
@@ -653,7 +650,7 @@ static JCLScanMsg_T addStatementFromText(OptInfo_T* optInfo, ProgInfo_T* progInf
 	if (nameEndOffset != 0) {
 		stmt->name = malloc(nameEndOffset+1);
 		if (!stmt->name) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_N;
 		}
 		memcpy(stmt->name, text, nameEndOffset);
 		stmt->name[nameEndOffset] = '\0';		
@@ -763,7 +760,7 @@ static JCLScanMsg_T addToRelationalExpression(OptInfo_T* optInfo, ProgInfo_T* pr
 	if (!cond) {
 		cond = malloc(sizeof(ConditionalExpression_T));
 		if (!cond) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_O;
 		}
 		cond->text = NULL;
 		prevLen = 0;
@@ -773,7 +770,7 @@ static JCLScanMsg_T addToRelationalExpression(OptInfo_T* optInfo, ProgInfo_T* pr
 	}
 	newText = malloc(prevLen+end-start+1);
 	if (!newText) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_P;
 	}
 	if (cond->text) {
 		memcpy(newText, cond->text, prevLen);
@@ -793,7 +790,7 @@ static JCLScanMsg_T addToInlineData(OptInfo_T* optInfo, ProgInfo_T* progInfo, co
 	if (!data) {
 		data = malloc(sizeof(InlineData_T));
 		if (!data) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_Q;
 		}
 		data->bytes = NULL;
 		data->len = 0;
@@ -806,7 +803,7 @@ static JCLScanMsg_T addToInlineData(OptInfo_T* optInfo, ProgInfo_T* progInfo, co
 	} else {			
 		newBytes = malloc(data->len+end-start+1);
 		if (!newBytes) {
-			return InternalOutOfMemory;
+			return InternalOutOfMemory_R;
 		}
 
 		if (data->bytes) {
@@ -1419,7 +1416,7 @@ static JCLScanMsg_T processJES3ContinueDataset(OptInfo_T* optInfo, ProgInfo_T* p
 static JCLScanMsg_T addRecord(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text) {
 	JCLLine_T* line = malloc(sizeof(JCLLine_T));
 	if (!line) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_S;
 	}
 	if (!progInfo->jcl->lines->head) {
 		progInfo->jcl->lines->head = progInfo->jcl->lines->tail = line;
@@ -1505,15 +1502,15 @@ JCLScanMsg_T scanJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 JCLScanMsg_T establishInput(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	progInfo->jcl = calloc(1, sizeof(JCL_T));
 	if (!progInfo->jcl) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_T;
 	}
 	progInfo->jcl->stmts = calloc(1, sizeof(JCLStmts_T));
 	if (!progInfo->jcl->stmts) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_U;
 	}	
 	progInfo->jcl->lines = calloc(1, sizeof(JCLLines_T));
 	if (!progInfo->jcl->lines) {
-		return InternalOutOfMemory;
+		return InternalOutOfMemory_V;
 	}		
 	
 	if (optInfo->inputFile) {

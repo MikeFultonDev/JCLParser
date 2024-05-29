@@ -33,6 +33,14 @@ To install jcl2jcl:
 - Alternately, just compile all the C code in `src` and link it.
 - The resultant program should be called `jcl2jcl` to use the sample parser.
 
+### Building with CMake
+
+- `cd /u/ibmuser/JCLParser`
+- `mkdir build`
+- `cd build`
+- `cmake ..`
+- `cmake --build .`
+
 ## API Reference
 
 To get started reading the code, begin in `jcl2jcl.c`, which has `main` and drives all the functions in the other files.

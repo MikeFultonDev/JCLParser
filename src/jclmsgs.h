@@ -18,7 +18,7 @@
 		TooFewArgsPlural=2,
 		TooManyArgs=3,
 		UnrecognizedOption=4,
-		InternalOutOfMemory=5,
+		InternalOutOfMemory_Generic=5,
 		UnableToEstablishEnvironment=6,
 		ErrorEstablishingEnvironment=7,
 		IssueHelp=8,
@@ -40,7 +40,34 @@
 		InvalidRecordContinuedStringNoSlash=45,
 		InvalidRecordContinuedCommentTooFewBlanks=46,
 		InvalidRecordContinuedConditional=47,
-		InvalidRecordContinuedParameter=48		
+		InvalidRecordContinuedParameter=48,
+
+		/* gap */
+
+		InternalOutOfMemory_A=100,
+		InternalOutOfMemory_B=101,
+		InternalOutOfMemory_C=102,
+		InternalOutOfMemory_D=103,
+		InternalOutOfMemory_E=104,
+		InternalOutOfMemory_F=105,
+		InternalOutOfMemory_G=106,
+		InternalOutOfMemory_H=107,
+		InternalOutOfMemory_I=108,
+		InternalOutOfMemory_J=109,
+		InternalOutOfMemory_K=110,
+		InternalOutOfMemory_L=111,
+		InternalOutOfMemory_M=112,
+		InternalOutOfMemory_N=113,
+		InternalOutOfMemory_O=114,
+		InternalOutOfMemory_P=115,
+		InternalOutOfMemory_Q=116,
+		InternalOutOfMemory_R=117,
+		InternalOutOfMemory_S=118,
+		InternalOutOfMemory_T=119,
+		InternalOutOfMemory_U=120,
+		InternalOutOfMemory_V=121,
+		InternalOutOfMemory_W=122,
+		InternalOutOfMemory_X=123
 	} JCLScanMsg_T;
 	
 	/*
