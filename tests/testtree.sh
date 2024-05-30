@@ -21,11 +21,12 @@ for jcl in ${jcls}; do
   #Remove all comments and cut everything past column 72
   #Update code as follows:
   # Remove 'comment removal' when #11 is fixed
+  # Remove '/* line removal' when #10 is fixed
   # Remove 'cutting' when #16 is fixed
   # Remove 'JOB cleanup' when #9 is fixed
   # Remove 'Generated SYSIN' when #12 is fixed
 
-  grep -v "^//\*" "${jcl}" | cut -c 1-72 >"${orig}" 2>/dev/null
+  grep -v "^//\*" "${jcl}" | grep -v "^/\*" | cut -c 1-72 >"${orig}" 2>/dev/null
   if [ $? -gt 0 ]; then
     # If there are non-ASCII characters then cut will complain
     # In that case, just use the original jcl
