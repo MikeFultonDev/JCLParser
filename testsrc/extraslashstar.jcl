@@ -1,0 +1,6 @@
+//IBMUSER JOB ,MSGLEVEL=(1,1)
+//STEP EXEC PGM=IEFBR14
+//SYSIN DD *
+some stuff
+/*
+/*
