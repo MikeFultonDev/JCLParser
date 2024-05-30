@@ -1,0 +1,5 @@
+//IBMUSERA JOB ,MSGLEVEL(1,1)
+//ASM     EXEC PGM=ASMA90,
+//             REGION=0M,
+//             PARM=('RENT,SYSPARM(HBB7720),USING(WARN(11))',
+//             'XREF(SHORT),DECK')
