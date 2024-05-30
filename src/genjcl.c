@@ -43,6 +43,9 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 				printInfo(InfoScannedJES2ControlStatement);
 			} else if (!strcmp(cur->type, JES3_KEYWORD)) {
 				printInfo(InfoScannedJES3ControlStatement);
+			} else if (!strcmp(cur->type, JCLCMD_KEYWORD)) {
+				/* MSF - the next line needs to be improved */
+				fwrite(cur->firstJCLLine->text, strlen(cur->firstJCLLine->text), 1, stdout);
 			} else {
 				if (!cur->name) {
 					printInfo(InfoScannedStatementNoName, cur->type); 
