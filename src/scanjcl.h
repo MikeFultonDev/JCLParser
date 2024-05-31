@@ -213,6 +213,7 @@
 	
 	typedef struct  {
 		char* text;
+		char* comment;
 	} ConditionalExpression_T;
 	
 	typedef struct  {

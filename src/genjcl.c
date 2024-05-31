@@ -39,6 +39,7 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	while (cur != NULL) {
 		if (!strcmp(cur->type, COMMENT_KEYWORD)) {
 			col += printInfo(InfoScannedComment, cur->scanhead->commentText);
+			col = 0;
 		} else {
 			if (!strcmp(cur->type, JES2_KEYWORD)) {
 				col+= printInfo(InfoScannedJES2ControlStatement);
@@ -56,6 +57,9 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 			}
 			if (cur->conditional) {
 				col+= printInfo(InfoScannedIFStatement, cur->conditional->text);
+				if (cur->conditional->comment) {
+					col+= printInfo(InfoComment, cur->conditional->comment);
+				}
 			}
 			KeyValuePair_T* kvp = cur->kvphead;
 			if (kvp == NULL) {

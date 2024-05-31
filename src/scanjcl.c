@@ -492,12 +492,11 @@ static JCLScanMsg_T addScannedLine(OptInfo_T* optInfo, ProgInfo_T* progInfo, con
 	return NoError;
 }
 
-static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
-	ScannedLine_T* line = progInfo->jcl->stmts->tail->scantail;
-	char* orig = line->commentText;
-	char* next;
+static JCLScanMsg_T appendCommentText(char** commentText, const char* text, size_t start, size_t end) {
 	size_t origLen;
-	size_t newLen;	
+	size_t newLen;
+	char* orig = *commentText;
+	char* next;
 	
 	skipBlanks(text, &start, &end); 
 	newLen = end-start;
@@ -517,10 +516,20 @@ static JCLScanMsg_T appendComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, cons
 	memcpy(&next[origLen], &text[start], newLen);
 	next[origLen+newLen] = '\0';
 	
-	line->commentText = next;
+	*commentText = next;
 	free(orig);
 	
 	return NoError;
+
+}
+
+static JCLScanMsg_T appendScannedComment(OptInfo_T* optInfo, ProgInfo_T* progInfo, const char* text, size_t start, size_t end) {
+	ScannedLine_T* line = progInfo->jcl->stmts->tail->scantail;
+	char* orig = line->commentText;
+
+	JCLScanMsg_T rc = appendCommentText(&orig, text, start, end);
+	line->commentText = orig;
+	return rc;
 }
 	
 static int isValidDelimiter(const char* text) {
@@ -763,6 +772,7 @@ static JCLScanMsg_T addToRelationalExpression(OptInfo_T* optInfo, ProgInfo_T* pr
 			return InternalOutOfMemory_O;
 		}
 		cond->text = NULL;
+		cond->comment = NULL;
 		prevLen = 0;
 		progInfo->jcl->stmts->tail->conditional = cond;
 	} else {
@@ -844,12 +854,23 @@ static JCLScanMsg_T scanConditional(OptInfo_T* optInfo, ProgInfo_T* progInfo, si
 	}
 	if (conditionalComplete) {
 		i += THEN_KEYLEN;
-		progInfo->jcl->stmts->state = JCLNotContinued;		
+		progInfo->jcl->stmts->state = JCLNotContinued;
+		char* conditional_comment = NULL;
+		size_t start = i+1;
+		char* comment = &text[start];
+		size_t end = strlen(comment);
+		rc = appendCommentText(&conditional_comment, text, start, end);
+		if (strlen(conditional_comment) > 0) {
+			progInfo->jcl->stmts->tail->conditional->comment = conditional_comment;
+		} else {
+			free(conditional_comment);
+		}
 	} else {
 		if (optInfo->verbose) { printInfo(InfoInConditional); }	
 		progInfo->jcl->stmts->state = JCLContinueConditional;
+		rc = NoError;
 	}		
-	return NoError;
+	return rc;
 }
 
 static JCLScanMsg_T scanJES2ControlStatement(OptInfo_T* optInfo, ProgInfo_T* progInfo, size_t name, size_t column) {
@@ -1383,8 +1404,8 @@ static JCLScanMsg_T processJCLContinueParameter(OptInfo_T* optInfo, ProgInfo_T* 
 	JCLScanMsg_T rc;
 	
 	if (text[0] == SLASH && text[1] == SLASH && text[2] == ASTERISK) {
-		appendComment(optInfo, progInfo, "\n", 0, 1); 
-		appendComment(optInfo, progInfo, text, PREFIX_LEN+1, JCL_TXTLEN-PREFIX_LEN);
+		appendScannedComment(optInfo, progInfo, "\n", 0, 1);
+		appendScannedComment(optInfo, progInfo, text, PREFIX_LEN+1, JCL_TXTLEN-PREFIX_LEN);
 		return NoError;
 	}
 	
