@@ -131,6 +131,9 @@
 		InfoScannedJES3ControlStatement=53,
 		InfoScannedIFStatement=54,
 		InfoScannedDelimiter=55,
+		InfoValueStart=56,
+		InfoValueMiddle=57,
+		InfoValueEnd=58
 	} JCLScanInfo_T;
 	
 #ifdef DEBUG
@@ -141,6 +144,6 @@
 #endif
 	void printHelp(const char* pgmName);
 
-	JCLScanMsg_T printError(JCLScanMsg_T pfm, ...);
-	JCLScanInfo_T printInfo(JCLScanInfo_T pim, ...);
+	int printError(JCLScanMsg_T pfm, ...);
+	int printInfo(JCLScanInfo_T pim, ...);
 #endif	
