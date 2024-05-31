@@ -115,7 +115,7 @@ static const char* JCLScanInfo[] = {
 	",",
 	"\n",
 	"  %s",
-	"// ",
+	"//       ",
 	"/*",
 	"//*",
 	"%s THEN",

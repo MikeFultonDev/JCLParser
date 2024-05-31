@@ -17,6 +17,26 @@ jcls=$(find "${dir}" -name "*.jcl" -type f)
 parsed="/tmp/parsed.jcl"
 orig="/tmp/orig.jcl"
 tmp="/tmp/tmp.jcl"
+
+rc=0
+if [ "$JCL2JCL_TEST_NOHACKS" != '' ]; then
+  for jcl in ${jcls}; do
+      ../build/jcl2jcl -i="${jcl}" >"${parsed}"
+      if [ $? -gt 0 ]; then
+        echo "JCL ${jcl} could not be parsed" >&2
+        rc=1
+      else
+        diffs=$(diff -b "${jcl}" "${parsed}")
+        if [ $? -gt 0 ]; then
+          echo "difference for ${jcl}." >&2
+          echo "${diffs}" >&2
+          rc=1
+        fi
+      fi
+   done
+   exit $rc
+fi
+
 for jcl in ${jcls}; do
   #Remove all comments and cut everything past column 72
   #Update code as follows:

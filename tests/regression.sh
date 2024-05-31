@@ -6,4 +6,6 @@
 # because the filetype is 'skipjcl'. These will be added to the 
 # 'bucket' as they are fixed.
 
+export JCL2JCL_TEST_NOHACKS=1
+
 ./testtree.sh ../testsrc
