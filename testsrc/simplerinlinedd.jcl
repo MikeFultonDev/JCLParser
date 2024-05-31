@@ -1,5 +1,5 @@
 //IBMUSERC JOB 'CRTVL',MSGCLASS=S,NOTIFY=&SYSUID,REGION=0M              
 //MYPGM EXEC PGM=IEFBR14          
-//MYDD DATA,DLM='zz'
+//MYDD DD DATA,DLM='zz'
   Some stuff 
 zz

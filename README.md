@@ -68,7 +68,11 @@ To get started reading the code, begin in `jcl2jcl.c`, which has `main` and driv
 
 ## Tests
 
-To Be Updated 
+Basic regression testing can be done after building `jcl2jcl` with:
+- `cd tests`
+- `./regression.sh`
+
+There should be no output. As bugs fixed, files with a filetype of `skipjcl` should be renamed to `jcl` to get included in regression testing.
 
 ## Work to be done
 
