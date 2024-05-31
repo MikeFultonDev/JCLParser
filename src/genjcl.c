@@ -72,7 +72,7 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 						col+= printInfo(InfoKeyOnly, kvp->key.txt);
 						/* print out start, 0->N middle, end value chunks */
 						char record[JCL_RECLEN+1];
-						int next_start = JCL_TXTLEN-col;
+						int next_start = JCL_TXTLEN-col-1;
 						memcpy(record, kvp->val.txt, next_start);
 						record[next_start] = '\0';
 						col+= printInfo(InfoValueStart, record);
