@@ -70,7 +70,8 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 				if (!kvp->val.txt) {
 					col+= printInfo(InfoKeyOnly, kvp->key.txt);
 				} else {
-					if (col+kvp->key.len+kvp->val.len < JCL_TXTLEN) {
+					/* Need to add support for non-string values here still */
+					if (col+kvp->key.len+kvp->val.len < JCL_TXTLEN || (kvp->val.txt[0] != QUOTE)) {
 						col+= printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
 					} else {
 						col+= printInfo(InfoKeyOnly, kvp->key.txt);
