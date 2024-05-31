@@ -35,48 +35,73 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 	size_t stmtNum = 0;
 	JCLStmts_T* stmts = progInfo->jcl->stmts;
 	JCLStmt_T* cur = stmts->head;
+	int col=0;
 	while (cur != NULL) {
 		if (!strcmp(cur->type, COMMENT_KEYWORD)) {
-			printInfo(InfoScannedComment, cur->scanhead->commentText);
+			col += printInfo(InfoScannedComment, cur->scanhead->commentText);
 		} else {
 			if (!strcmp(cur->type, JES2_KEYWORD)) {
-				printInfo(InfoScannedJES2ControlStatement);
+				col+= printInfo(InfoScannedJES2ControlStatement);
 			} else if (!strcmp(cur->type, JES3_KEYWORD)) {
-				printInfo(InfoScannedJES3ControlStatement);
+				col+= printInfo(InfoScannedJES3ControlStatement);
 			} else if (!strcmp(cur->type, JCLCMD_KEYWORD)) {
 				/* MSF - the next line needs to be improved */
-				fwrite(cur->firstJCLLine->text, strlen(cur->firstJCLLine->text), 1, stdout);
+				col+= fwrite(cur->firstJCLLine->text, strlen(cur->firstJCLLine->text), 1, stdout);
 			} else {
 				if (!cur->name) {
-					printInfo(InfoScannedStatementNoName, cur->type); 
+					col+= printInfo(InfoScannedStatementNoName, cur->type); 
 				} else {
-					printInfo(InfoScannedStatement, cur->name, cur->type); 
+					col+= printInfo(InfoScannedStatement, cur->name, cur->type); 
 				}	
 			}
 			if (cur->conditional) {
-				printInfo(InfoScannedIFStatement, cur->conditional->text);
+				col+= printInfo(InfoScannedIFStatement, cur->conditional->text);
 			}
 			KeyValuePair_T* kvp = cur->kvphead;
 			if (kvp == NULL) {
 				printInfo(InfoNewLine);
+				col = 0;
 			}
 			while (kvp != NULL) {
 				if (!kvp->val.txt) {
-					printInfo(InfoKeyOnly, kvp->key.txt);
+					col+= printInfo(InfoKeyOnly, kvp->key.txt);
 				} else {
-					printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
+					if (col+kvp->key.len+kvp->val.len < JCL_TXTLEN) {
+						col+= printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
+					} else {
+						col+= printInfo(InfoKeyOnly, kvp->key.txt);
+						/* print out start, 0->N middle, end value chunks */
+						char record[JCL_RECLEN+1];
+						int next_start = JCL_TXTLEN-col;
+						memcpy(record, kvp->val.txt, next_start);
+						record[next_start] = '\0';
+						col+= printInfo(InfoValueStart, record);
+						col = 0;
+						while (next_start+JCL_TXTLEN-STRING_CONTINUE_COLUMN < kvp->val.len) {
+							memcpy(record, &kvp->val.txt[next_start], JCL_TXTLEN-STRING_CONTINUE_COLUMN-1);
+							record[JCL_TXTLEN-STRING_CONTINUE_COLUMN-1] = '\0';
+							col+= printInfo(InfoValueMiddle, record);
+							col = 0;
+							next_start += JCL_TXTLEN-STRING_CONTINUE_COLUMN-1;
+						}
+						int remainder = kvp->val.len - next_start;
+						memcpy(record, &kvp->val.txt[next_start], remainder);
+						record[remainder] = '\0';
+						col+= printInfo(InfoValueEnd, record);
+					}
 				}
 				if (kvp->next != NULL) {
-					printInfo(InfoSeparator);
+					col+= printInfo(InfoSeparator);
 				}
 				if (kvp->comment) {
-					printInfo(InfoComment, kvp->comment);
+					col+= printInfo(InfoComment, kvp->comment);
 				}
 				if (kvp->next == NULL || kvp->hasNewline) {
 					printInfo(InfoNewLine);
+					col = 0;
 				}
 				if (kvp->hasNewline && kvp->next != NULL) {
-					printInfo(InfoStmtPrefix);
+					col+= printInfo(InfoStmtPrefix);
 				}
 				kvp = kvp->next;
 			}
@@ -86,7 +111,7 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 				}
 
 				if (memcmp(cur->data->retainDelim, EMPTY_DELIM, DELIM_LEN)) {
-					printInfo(InfoScannedDelimiter, cur->data->retainDelim);
+					col+= printInfo(InfoScannedDelimiter, cur->data->retainDelim);
 				}
 			}
 		}

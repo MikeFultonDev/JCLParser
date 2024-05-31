@@ -119,23 +119,28 @@ static const char* JCLScanInfo[] = {
 	"/*",
 	"//*",
 	"%s THEN",
+	"%s=\n",
 	"%s\n",
+	"//              %s\n",
+	"//              %s"
 };
 
-JCLScanMsg_T printError(JCLScanMsg_T reason, ...) {
+int printError(JCLScanMsg_T reason, ...) {
 	va_list arg_ptr;
+	int rc;
 	va_start(arg_ptr, reason);
-	vfprintf(stderr, JCLScanMessage[reason], arg_ptr);
+	rc = vfprintf(stderr, JCLScanMessage[reason], arg_ptr);
 	va_end(arg_ptr);
-	return reason;
+	return rc;
 }
 
-JCLScanInfo_T printInfo(JCLScanInfo_T reason, ...) {
+int printInfo(JCLScanInfo_T reason, ...) {
 	va_list arg_ptr;
+	int rc;
 	va_start(arg_ptr, reason);
-	vfprintf(stdout, JCLScanInfo[reason], arg_ptr);
+	rc = vfprintf(stdout, JCLScanInfo[reason], arg_ptr);
 	va_end(arg_ptr);
-	return reason;
+	return rc;
 }
 
 void printHelp(const char* progName) {
