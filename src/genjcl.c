@@ -70,29 +70,40 @@ JCLScanMsg_T genJCL(OptInfo_T* optInfo, ProgInfo_T* progInfo) {
 				if (!kvp->val.txt) {
 					col+= printInfo(InfoKeyOnly, kvp->key.txt);
 				} else {
-					/* Need to add support for non-string values here still */
-					if (col+kvp->key.len+kvp->val.len < JCL_TXTLEN || (kvp->val.txt[0] != QUOTE)) {
+					if (col+kvp->key.len+kvp->val.len < JCL_TXTLEN) {
 						col+= printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
-					} else {
-						col+= printInfo(InfoKeyOnly, kvp->key.txt);
-						/* print out start, 0->N middle, end value chunks */
-						char record[JCL_RECLEN+1];
-						int next_start = JCL_TXTLEN-col-1;
-						memcpy(record, kvp->val.txt, next_start);
-						record[next_start] = '\0';
-						col+= printInfo(InfoValueStart, record);
-						col = 0;
-						while (next_start+JCL_TXTLEN-STRING_CONTINUE_COLUMN < kvp->val.len) {
-							memcpy(record, &kvp->val.txt[next_start], JCL_TXTLEN-STRING_CONTINUE_COLUMN-1);
-							record[JCL_TXTLEN-STRING_CONTINUE_COLUMN-1] = '\0';
-							col+= printInfo(InfoValueMiddle, record);
+					} else { 
+						if (kvp->val.txt[0] == QUOTE) {
+							col+= printInfo(InfoKeyOnly, kvp->key.txt);
+							/* print out start, 0->N middle, end value chunks */
+							char record[JCL_RECLEN+1];
+							int next_start = JCL_TXTLEN-col-1;
+							memcpy(record, kvp->val.txt, next_start);
+							record[next_start] = '\0';
+							col+= printInfo(InfoValueStart, record);
 							col = 0;
-							next_start += JCL_TXTLEN-STRING_CONTINUE_COLUMN-1;
+							while (next_start+JCL_TXTLEN-STRING_CONTINUE_COLUMN < kvp->val.len) {
+								memcpy(record, &kvp->val.txt[next_start], JCL_TXTLEN-STRING_CONTINUE_COLUMN-1);
+								record[JCL_TXTLEN-STRING_CONTINUE_COLUMN-1] = '\0';
+								col+= printInfo(InfoValueMiddle, record);
+								col = 0;
+								next_start += JCL_TXTLEN-STRING_CONTINUE_COLUMN-1;
+							}
+							int remainder = kvp->val.len - next_start;
+							memcpy(record, &kvp->val.txt[next_start], remainder);
+							record[remainder] = '\0';
+							col+= printInfo(InfoValueEnd, record);
+						} else {
+							/* This is a partial fix for most cases but it is possible
+							 * that a sub-parm could need to be split if it was a string.
+							 * That requires a larger enhancement to tokenize sub-parameters
+							 * and not just a simple key/value pair. 
+							 */
+							printInfo(InfoNewLine);
+							col = 0;
+							col += printInfo(InfoStmtPrefix);
+							col += printInfo(InfoKeyValuePair, kvp->key.txt, kvp->val.txt);
 						}
-						int remainder = kvp->val.len - next_start;
-						memcpy(record, &kvp->val.txt[next_start], remainder);
-						record[remainder] = '\0';
-						col+= printInfo(InfoValueEnd, record);
 					}
 				}
 				if (kvp->next != NULL) {

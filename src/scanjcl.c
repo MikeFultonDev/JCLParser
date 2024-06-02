@@ -858,7 +858,7 @@ static JCLScanMsg_T scanConditional(OptInfo_T* optInfo, ProgInfo_T* progInfo, si
 		char* conditional_comment = NULL;
 		size_t start = i+1;
 		char* comment = &text[start];
-		size_t end = strlen(comment);
+		size_t end = start+strlen(comment);
 		rc = appendCommentText(&conditional_comment, text, start, end);
 		if (strlen(conditional_comment) > 0) {
 			progInfo->jcl->stmts->tail->conditional->comment = conditional_comment;
